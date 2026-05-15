@@ -993,3 +993,156 @@ DEFINE INDEX subscription_tenant ON subscription FIELDS tenant;
 DEFINE INDEX usage_period ON usage_record FIELDS period_start;
 DEFINE INDEX job_status ON job FIELDS status;
 DEFINE INDEX notification_user ON notification FIELDS user, read;
+-- =====================================================
+-- ADVANCED SURREALDB FEATURES
+-- =====================================================
+
+-- =====================================================
+-- Full-text Search Indexes
+-- =====================================================
+DEFINE ANALYZER article_analyzer TOKENIZERS blank, classics FILTERS ascii, lowercase, portStem;
+DEFINE ANALYZER knowledge_analyzer TOKENIZERS blank FILTERS ascii, lowercase;
+
+DEFINE INDEX article_search ON article FIELDS content FULLTEXT ANALYZER article_analyzer BM25 HIGHLIGHTS;
+DEFINE INDEX knowledge_search ON knowledge FIELDS fact FULLTEXT ANALYZER knowledge_analyzer BM25;
+DEFINE INDEX ticket_search ON ticket FIELDS description FULLTEXT ANALYZER article_analyzer BM25;
+
+-- =====================================================
+-- HNSW Vector Indexes (better than MTREE for embedding search)
+-- =====================================================
+DEFINE INDEX article_vec_hnsw ON article FIELDS embedding HNSW DIMENSION 512 DIST COSINE STORAGE F32;
+DEFINE INDEX knowledge_vec_hnsw ON knowledge FIELDS embedding HNSW DIMENSION 512 DIST COSINE STORAGE F32;
+DEFINE INDEX context_vec_hnsw ON context_chunk FIELDS embedding HNSW DIMENSION 512 DIST COSINE STORAGE F32;
+DEFINE INDEX message_vec_hnsw ON message FIELDS embedding HNSW DIMENSION 512 DIST COSINE STORAGE F32;
+DEFINE INDEX chunk_vec_hnsw ON chunk FIELDS embedding HNSW DIMENSION 512 DIST COSINE STORAGE F32;
+DEFINE INDEX document_vec_hnsw ON document FIELDS embedding HNSW DIMENSION 512 DIST COSINE STORAGE F32;
+
+-- =====================================================
+-- Constraints and Validation
+-- =====================================================
+DEFINE FIELD weight ON solution TYPE float ASSERT $value >= 0.0 AND $value <= 1.0 DEFAULT 1.0;
+DEFINE FIELD priority ON ticket TYPE string ASSERT $value IN ['low', 'medium', 'high', 'critical'] DEFAULT 'medium';
+DEFINE FIELD status ON ticket TYPE string ASSERT $value IN ['open', 'pending', 'resolved', 'closed'] DEFAULT 'open';
+DEFINE FIELD status ON session TYPE string ASSERT $value IN ['active', 'completed', 'cancelled'] DEFAULT 'active';
+DEFINE FIELD rating ON feedback TYPE int ASSERT $value >= 1 AND $value <= 5;
+DEFINE FIELD confidence ON entity TYPE float ASSERT $value >= 0.0 AND $value <= 1.0 DEFAULT 1.0;
+DEFINE FIELD progress ON job TYPE int ASSERT $value >= 0 AND $value <= 100 DEFAULT 0;
+DEFINE FIELD attempts ON job TYPE int ASSERT $value >= 0 DEFAULT 0;
+DEFINE FIELD limit ON rate_limit TYPE int ASSERT $value > 0 DEFAULT 100;
+DEFINE FIELD rollout_percentage ON feature_flag TYPE float ASSERT $value >= 0.0 AND $value <= 100.0 DEFAULT 0.0;
+
+-- =====================================================
+-- Table Events (auto-triggers)
+-- =====================================================
+-- Log when new session created
+DEFINE EVENT ON session WHEN $event = 'CREATE' THEN (
+    CREATE log SET session = $this, level = 'info', source = 'event', message = 'Session created', data = $before, created = time::now()
+);
+
+-- Log when decision is made
+DEFINE EVENT ON decision_step WHEN $event = 'CREATE' THEN (
+    CREATE log SET session = $this.session, level = 'debug', source = 'decision', message = $this.action, data = {tool: $this.tool}, created = time::now()
+);
+
+-- Log response
+DEFINE EVENT ON response_trace WHEN $event = 'CREATE' THEN (
+    CREATE log SET session = $this.session, level = 'info', source = 'response', message = 'Response sent', data = {model: $this.model, tokens: $this.token_count}, created = time::now()
+);
+
+-- Log session completed
+DEFINE EVENT ON session WHEN $event = 'UPDATE' AND $before.status != 'completed' AND $after.status = 'completed' THEN (
+    CREATE log SET session = $this.id, level = 'info', source = 'event', message = 'Session completed', data = $before, created = time::now()
+);
+
+-- Log feedback received
+DEFINE EVENT ON feedback WHEN $event = 'CREATE' THEN (
+    CREATE log SET session = $this.session, level = 'info', source = 'feedback', message = 'Feedback received', data = {rating: $this.rating}, created = time::now()
+);
+
+-- =====================================================
+-- Change Data Capture
+-- =====================================================
+DEFINE TABLE session CHANGE FEED 7d;
+DEFINE TABLE decision_step CHANGE FEED 30d;
+DEFINE TABLE response_trace CHANGE FEED 30d;
+DEFINE TABLE feedback CHANGE FEED 30d;
+DEFINE TABLE job CHANGE FEED 1d;
+
+-- =====================================================
+-- Computed Fields (using DEFAULT)
+-- =====================================================
+DEFINE FIELD full_name ON user TYPE string DEFAULT string::join(' ', $this.first_name, $this.last_name);
+DEFINE FIELD token_cost ON token_usage TYPE float DEFAULT ($this.prompt_tokens / 1000.0 * 0.01) + ($this.completion_tokens / 1000.0 * 0.03);
+
+-- =====================================================
+-- Hybrid Search Function
+-- =====================================================
+DEFINE FUNCTION fn::hybrid_search($query, $limit, $threshold) [
+   LET $text_results = (
+        SELECT id, search::score(1) AS score FROM article 
+        WHERE content @1@ $query 
+        ORDER BY score DESC LIMIT $limit
+    );
+    LET $vec_results = (
+        SELECT id, vector::distance::knn() AS distance FROM article 
+        WHERE embedding <|$limit,100|> $query
+    );
+    SELECT search::rrf([$text_results, $vec_results], $limit, $threshold) AS results
+];
+
+-- =====================================================
+-- Geospatial Fields (for future location features)
+-- =====================================================
+DEFINE FIELD location ON user TYPE geometry<Point>;
+DEFINE FIELD location ON tenant TYPE geometry<Point>;
+DEFINE FIELD boundary ON tenant TYPE geometry<Polygon>;
+
+-- =====================================================
+-- UUID Fields (for better IDs)
+-- =====================================================
+DEFINE FIELD uuid ON session TYPE uuid DEFAULT uuid::v4();
+DEFINE FIELD uuid ON job TYPE uuid DEFAULT uuid::v4();
+DEFINE FIELD uuid ON invite TYPE uuid DEFAULT uuid::v4();
+
+-- =====================================================
+-- Duration Fields (for TTL, timeouts)
+-- =====================================================
+DEFINE FIELD timeout_sec ON rate_limit TYPE duration DEFAULT 60s;
+DEFINE FIELD duration ON rate_limit_usage TYPE duration DEFAULT 60s;
+
+-- =====================================================
+-- Strict Type Arrays (set, array with constraints)
+-- =====================================================
+DEFINE FIELD tags ON article TYPE set<string, 20>;
+DEFINE FIELD scopes ON api_key TYPE array<string>;
+DEFINE FIELD events ON webhook TYPE array<string>;
+
+-- =====================================================
+-- Record Link Constraints
+-- =====================================================
+DEFINE FIELD user_id ON session TYPE record<user> ASSERT $value IS NOT NULL;
+DEFINE FIELD session ON decision_step TYPE record<session> ASSERT $value IS NOT NULL;
+DEFINE FIELD guardrail ON guardrail_check TYPE record<guardrail> ASSERT $value IS NOT NULL;
+DEFINE FIELD tenant ON tenant TYPE record<tenant> ASSERT $value IS NOT NULL;
+
+-- =====================================================
+-- Live Queries (uncomment to enable real-time)
+-- =====================================================
+-- LIVE SELECT * FROM session WHERE status = 'active';
+-- LIVE SELECT * FROM job WHERE status = 'queued';
+-- LIVE SELECT * FROM feedback WHERE rating < 3;
+
+-- =====================================================
+-- Additional Indexes for Performance
+-- =====================================================
+DEFINE INDEX session_user ON session FIELDS user_id;
+DEFINE INDEX session_status ON session FIELDS status;
+DEFINE INDEX decision_session ON decision_step FIELDS session;
+DEFINE INDEX response_session ON response_trace FIELDS session;
+DEFINE INDEX entity_session ON entity FIELDS session;
+DEFINE INDEX entity_type ON entity FIELDS type;
+DEFINE INDEX tool_name ON tool FIELDS name UNIQUE;
+DEFINE INDEX webhook_event ON webhook FIELDS events;
+DEFINE INDEX job_status_time ON job FIELDS status, created;
+DEFINE INDEX tenant_plan ON tenant FIELDS plan;
+DEFINE INDEX feedback_session ON feedback FIELDS session;
