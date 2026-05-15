@@ -1,0 +1,40 @@
+# SurrealKit Configuration
+# https://github.com/surrealdb/surrealkit
+
+[project]
+name = "agent-memory"
+version = "0.1.0"
+
+[sync]
+# Schema files to sync
+paths = ["surql/*.surql"]
+
+# Auto-sync on startup
+auto_sync = true
+
+# Strict mode (fail if not in sync)
+strict = false
+
+[seed]
+# Seed files to run
+paths = ["surql/02-seed.surql"]
+
+[test]
+# Test files
+paths = ["tests/*.test.surql"]
+
+# Snapshot directory
+snapshots = "tests/snapshots"
+
+[rollout]
+# Generated rollouts directory
+directory = "database/rollouts"
+
+# Require confirmation
+confirm = true
+
+[variables]
+# Environment variables for schema
+# DB_URL = "ws://localhost:8000/rpc"
+# DB_USER = "root"
+# DB_PASS = "root"

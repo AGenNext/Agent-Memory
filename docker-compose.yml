@@ -82,6 +82,48 @@ services:
     depends_on:
       - surrealdb
 
+  # SurrealKit - Schema migrations & testing
+  surrealkit:
+    image: ghcr.io/surrealdb/surrealkit:latest
+    container_name: agent-memory-kit
+    volumes:
+      - ./surql:/surql
+      - ./surrealkit.toml:/surrealkit.toml
+      - ./models:/models
+    environment:
+      - SURREAL_DB_URL=ws://surrealdb:8000/rpc
+      - SURREAL_DB_USER=root
+      - SURREAL_DB_PASS=root
+      - SURREAL_DB_NAMESPACE=memory
+      - SURREAL_DB_DATABASE=agent
+    depends_on:
+      - surrealdb
+    profiles:
+      - dev
+
+  # SurrealML - In-database inference
+  surrealdb-ml:
+    image: surrealdb/surrealdb:latest
+    container_name: agent-memory-db-ml
+    ports:
+      - "8001:8000"
+    command: >
+      start 
+      --log trace 
+      --user root 
+      --pass root 
+      --allow-funcs 
+      --allow-net 
+      --allow-experimental 
+      rocksdb:///data/memory.db
+    volumes:
+      - ./models:/models
+    environment:
+      - SURREALDB_USER=root
+      - SURREALDB_PASS=root
+    profiles:
+      - ml
+
 # =====================================================
 # Multi-Node Distributed Mode (TiKV)
 # =====================================================
