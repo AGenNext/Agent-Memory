@@ -2,6 +2,22 @@
 
 Tools, capabilities, and built-in features.
 
+## UI
+
+Open `ui/index.html` in a browser for a complete dashboard with:
+
+- Vector Search interface
+- Knowledge Graph explorer
+- RAG Chat
+- Live Queries (real-time)
+- AI Agent Chat
+- Healthcare Agent
+- Finance Agent
+- Gaming Agent
+- Schema Editor
+- Query Editor
+- Data Explorer
+
 ## Tools
 
 | Tool | File | Description |

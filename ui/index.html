@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent-Memory UI</title>
+    <style>
+        :root {
+            --bg: #0d1117;
+            --bg-secondary: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --success: #3fb950;
+            --warning: #d29922;
+            --error: #f85149;
+        }
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        .app {
+            display: grid;
+            grid-template-columns: 240px 1fr;
+            grid-template-rows: 56px 1fr;
+            min-height: 100vh;
+        }
+        
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+        }
+        
+        .logo {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            padding: 16px 0;
+            overflow-y: auto;
+        }
+        
+        .nav-section {
+            margin-bottom: 20px;
+        }
+        
+        .nav-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            padding: 0 16px;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+        
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            color: var(--text);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        
+        .nav-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .nav-item.active {
+            background: rgba(88, 166, 255, 0.1);
+            color: var(--accent);
+        }
+        
+        .nav-icon {
+            width: 18px;
+            height: 18px;
+            opacity: 0.7;
+        }
+        
+        /* Main content */
+        .main {
+            padding: 24px;
+            overflow-y: auto;
+        }
+        
+        .page {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .page-header {
+            margin-bottom: 24px;
+        }
+        
+        .page-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .page-description {
+            color: var(--text-muted);
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+        
+        .card-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .card-title {
+            font-weight: 600;
+        }
+        
+        .card-body {
+            padding: 16px;
+        }
+        
+        /* Buttons */
+        .btn {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        /* Forms */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 6px;
+            color: var(--text-muted);
+        }
+        
+        .form-input {
+            width: 100%;
+            padding: 10px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text);
+            font-size: 14px;
+        }
+        
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+        
+        textarea.form-input {
+            min-height: 120px;
+            resize: vertical;
+        }
+        
+        select.form-input {
+            cursor: pointer;
+        }
+        
+        /* Tables */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .table th, .table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .table th {
+            color: var(--text-muted);
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+        
+        .table tr:hover td {
+            background: rgba(255,255,255,0.02);
+        }
+        
+        /* Code */
+        code, pre {
+            font-family: 'SF Mono', Consolas, monospace;
+            font-size: 13px;
+        }
+        
+        pre {
+            background: var(--bg);
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        
+        .code-block {
+            background: var(--bg);
+            padding: 16px;
+            border-radius: 6px;
+            overflow-x: auto;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+        
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-success {
+            background: rgba(63, 185, 80, 0.15);
+            color: var(--success);
+        }
+        
+        .badge-warning {
+            background: rgba(210, 153, 34, 0.15);
+            color: var(--warning);
+        }
+        
+        .badge-error {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--error);
+        }
+        
+        .badge-info {
+            background: rgba(88, 166, 255, 0.15);
+            color: var(--accent);
+        }
+        
+        /* Grid */
+        .grid {
+            display: grid;
+            gap: 16px;
+        }
+        
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
+        
+        @media (max-width: 1024px) {
+            .grid-3, .grid-4 { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 768px) {
+            .app { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+        }
+        
+        /* Stats */
+        .stat {
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+        
+        /* Chat */
+        .chat {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            height: calc(100vh - 200px);
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        .chat-message {
+            margin-bottom: 16px;
+            max-width: 80%;
+        }
+        
+        .chat-message.user {
+            margin-left: auto;
+        }
+        
+        .chat-bubble {
+            padding: 12px 16px;
+            border-radius: 12px;
+            background: var(--bg-secondary);
+        }
+        
+        .chat-message.user .chat-bubble {
+            background: var(--accent);
+            color: #fff;
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .chat-input input {
+            flex: 1;
+        }
+        
+        /* Explorer */
+        .explorer {
+            display: flex;
+            gap: 16px;
+            height: calc(100vh - 200px);
+        }
+        
+        .explorer-tree {
+            width: 240px;
+            overflow-y: auto;
+        }
+        
+        .tree-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .tree-item:hover {
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .tree-item.selected {
+            background: rgba(88, 166, 255, 0.1);
+        }
+        
+        .explorer-content {
+            flex: 1;
+            overflow-y: auto;
+        }
+        
+        /* Empty state */
+        .empty {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                Agent-Memory
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" onclick="alert('Settings')">Settings</button>
+                <button class="btn btn-primary">+ New Agent</button>
+            </div>
+        </header>
+        
+        <!-- Sidebar -->
+        <nav class="sidebar">
+            <div class="nav-section">
+                <div class="nav-title">Tools</div>
+                <div class="nav-item active" onclick="showPage('vector')">
+                    <span class="nav-icon">🔍</span>
+                    Vector Search
+                </div>
+                <div class="nav-item" onclick="showPage('kg')">
+                    <span class="nav-icon">🔗</span>
+                    Knowledge Graph
+                </div>
+                <div class="nav-item" onclick="showPage('rag')">
+                    <span class="nav-icon">📚</span>
+                    RAG Chat
+                </div>
+                <div class="nav-item" onclick="showPage('live')">
+                    <span class="nav-icon">📡</span>
+                    Live Queries
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Agents</div>
+                <div class="nav-item" onclick="showPage('chat')">
+                    <span class="nav-icon">💬</span>
+                    Chat
+                </div>
+                <div class="nav-item" onclick="showPage('healthcare')">
+                    <span class="nav-icon">🏥</span>
+                    Healthcare
+                </div>
+                <div class="nav-item" onclick="showPage('finance')">
+                    <span class="nav-icon">💰</span>
+                    Finance
+                </div>
+                <div class="nav-item" onclick="showPage('gaming')">
+                    <span class="nav-icon">🎮</span>
+                    Gaming
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Tools</div>
+                <div class="nav-item" onclick="showPage('schema')">
+                    <span class="nav-icon">📋</span>
+                    Schema
+                </div>
+                <div class="nav-item" onclick="showPage('query')">
+                    <span class="nav-icon">⚡</span>
+                    Query
+                </div>
+            </div>
+            
+            <div class="nav-section">
+                <div class="nav-title">Explore</div>
+                <div class="nav-item" onclick="showPage('explorer')">
+                    <span class="nav-icon">📁</span>
+                    Explorer
+                </div>
+                <div class="nav-item" onclick="showPage('docs')">
+                    <span class="nav-icon">📖</span>
+                    Docs
+                </div>
+            </div>
+        </nav>
+        
+        <!-- Main Content -->
+        <main class="main">
+            <!-- Vector Search Page -->
+            <div class="page" id="page-vector">
+                <div class="page-header">
+                    <h1 class="page-title">Vector Search</h1>
+                    <p class="page-description">Semantic similarity search with HNSW indexes</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">Search Query</label>
+                            <input type="text" class="form-input" placeholder="Enter your search query..." id="vector-query">
+                        </div>
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Table</label>
+                                <select class="form-input" id="vector-table">
+                                    <option value="document">document</option>
+                                    <option value="chunk">chunk</option>
+                                    <option value="doc">doc</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Top K</label>
+                                <input type="number" class="form-input" value="5" id="vector-k">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="runVectorSearch()">Search</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Results</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="code-block" id="vector-results">No results yet. Run a search to see results.</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">SurrealQL</span>
+                    </div>
+                    <div class="card-body">
+                        <pre>-- Create HNSW index
+DEFINE INDEX doc_vec ON doc 
+  FIELDS embedding HNSW 
+  DIMENSION 384 DISTANCE COSINE;
+
+-- Vector search
+SELECT *, vector::distance::knn() AS score
+FROM doc 
+WHERE embedding <|5|> $embedding
+ORDER BY score ASC;</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Knowledge Graph Page -->
+            <div class="page" id="page-kg" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">Knowledge Graph</h1>
+                    <p class="page-description">Entities and relationships with RELATE</p>
+                </div>
+                
+                <div class="grid grid-2">
+                    <div>
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">Create Entity</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label class="form-label">Entity Name</label>
+                                    <input type="text" class="form-input" placeholder="e.g., SurrealDB" id="kg-name">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Type</label>
+                                    <select class="form-input" id="kg-type">
+                                        <option value="person">Person</option>
+                                        <option value="company">Company</option>
+                                        <option value="product">Product</option>
+                                        <option value="concept">Concept</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary" onclick="createEntity()">Create Entity</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">Create Relation</span>
+                            </div>
+                            <div class="card-body">
+                                <div class="form-group">
+                                    <label class="form-label">From Entity</label>
+                                    <input type="text" class="form-input" placeholder="entity:alice" id="kg-from">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Relation Type</label>
+                                    <input type="text" class="form-input" placeholder="knows, works_at, owns" id="kg-rel">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">To Entity</label>
+                                    <input type="text" class="form-input" placeholder="entity:bob" id="kg-to">
+                                </div>
+                                <button class="btn btn-primary" onclick="createRelation()">Create Relation</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">SurrealQL</span>
+                    </div>
+                    <div class="card-body">
+                        <pre>-- Create entity
+CREATE entity SET name='SurrealDB', type='company';
+
+-- Create relation with properties
+RELATE entity:alice -> knows -> entity:bob SET 
+  since = d'2024-01-15',
+  confidence = 0.95;
+
+-- Traverse
+SELECT <-related->entity.name AS connections 
+FROM entity:alice;</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- RAG Chat Page -->
+            <div class="page" id="page-rag" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">RAG Chat</h1>
+                    <p class="page-description">Retrieval-Augmented Generation</p>
+                </div>
+                
+                <div class="chat">
+                    <div class="chat-messages" id="rag-messages">
+                        <div class="chat-message">
+                            <div class="chat-bubble">👋 Hi! Ask me anything about your knowledge base.</div>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" class="form-input" placeholder="Ask a question..." id="rag-input" onkeypress="if(event.key==='Enter')sendRAG()">
+                        <button class="btn btn-primary" onclick="sendRAG()">Send</button>
+                    </div>
+                </div>
+                
+                <div class="card" style="margin-top: 24px;">
+                    <div class="card-header">
+                        <span class="card-title">How it works</span>
+                    </div>
+                    <div class="card-body">
+                        <ol style="padding-left: 20px; line-height: 2;">
+                            <li>User asks a question</li>
+                            <li>Generate embedding for the query</li>
+                            <li>Vector search finds similar documents</li>
+                            <li>Retrieve top context chunks</li>
+                            <li>Send to LLM with context</li>
+                            <li>Return generated answer</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Live Queries Page -->
+            <div class="page" id="page-live" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">Live Queries</h1>
+                    <p class="page-description">Real-time subscriptions - no polling needed</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Subscribe</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="grid grid-2">
+                            <div class="form-group">
+                                <label class="form-label">Table</label>
+                                <select class="form-input" id="live-table">
+                                    <option value="message">message</option>
+                                    <option value="order">order</option>
+                                    <option value="notification">notification</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Filter</label>
+                                <input type="text" class="form-input" placeholder="status = 'pending'" id="live-where">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary" onclick="subscribeLive()">Subscribe</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Stream</span>
+                    </div>
+                    <div class="card-body" id="live-stream">
+                        <div class="empty">No subscriptions yet</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">LIVE Query Syntax</span>
+                    </div>
+                    <div class="card-body">
+                        <pre>-- Watch all messages
+LIVE SELECT * FROM message;
+
+-- Watch specific room
+LIVE SELECT * FROM message WHERE room = 'general';
+
+-- Watch single record
+LIVE SELECT * FROM user:jaime;</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat Page -->
+            <div class="page" id="page-chat" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">AI Agent Chat</h1>
+                    <p class="page-description">Chat with configurable LLM</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <div class="grid grid-3">
+                            <div class="stat">
+                                <div class="stat-value">3</div>
+                                <div class="stat-label">Active Agents</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">1.2k</div>
+                                <div class="stat-label">Messages</div>
+                            </div>
+                            <div class="stat">
+                                <div class="stat-value">98%</div>
+                                <div class="stat-label">Accuracy</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat">
+                    <div class="chat-messages" id="chat-messages">
+                        <div class="chat-message">
+                            <div class="chat-bubble">Hello! I'm your AI assistant. How can I help you today?</div>
+                        </div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" class="form-input" placeholder="Type a message..." id="chat-input" onkeypress="if(event.key==='Enter')sendChat()">
+                        <button class="btn btn-primary" onclick="sendChat()">Send</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Healthcare Page -->
+            <div class="page" id="page-healthcare" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">🏥 Healthcare Agent</h1>
+                    <p class="page-description">Patient management with SurrealDB</p>
+                </div>
+                
+                <div class="grid grid-4">
+                    <div class="card"><div class="card-body"><div class="stat"><div class="stat-value">1.2k</div><div class="stat-label">Patients</div></div></div></div>
+                    <div class="card"><div class="card-body"><div class="stat"><div class="stat-value">89</div><div class="stat-label">Encounters</div></div></div></div>
+                    <div class="card"><div class="card-body"><div class="stat"><div class="stat-value">12</div><div class="stat-label">Alerts</div></div></div></div>
+                    <div class="card"><div class="card-body"><div class="stat"><div class="stat-value">45</div><div class="stat-label">Active Scripts</div></div></div></div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Patient Search</span>
+                    </div>
+                    <div class="card-body">
+                        <input type="text" class="form-input" placeholder="Search by name or MRN...">
+                        <div style="margin-top: 12px;">
+                            <button class="btn btn-primary">New Patient</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Recent Patients</span>
+                    </div>
+                    <div class="card-body">
+                        <table class="table">
+                            <thead><tr><th>MRN</th><th>Name</th><th>DOB</th><th>Allergies</th><th>Status</th></tr></thead>
+                            <tbody>
+                                <tr><td>MRN-001</td><td>John Doe</td><td>1980-01-15</td><td>Penicillin</td><td><span class="badge badge-success">Active</span></td></tr>
+                                <tr><td>MRN-002</td><td>Jane Smith</td><td>1975-06-22</td><td>Shellfish</td><td><span class="badge badge-success">Active</span></td></tr>
+                                <tr><td>MRN-003</td><td>Bob Wilson</td><td>1990-03-10</td><td>NSAIDs</td><td><span class="badge badge-warning">Review</span></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Finance Page -->
+            <div class="page" id="page-finance" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">💰 Finance Agent</h1>
+                    <p class="page-description">Banking and portfolio management</p>
+                </div>
+                
+                <div class="grid grid-4">
+                    <div class="card"><div class="card-body"><div class="stat"><div class="stat-value">$250k</div><div class="stat-label">Total Assets</div></div></div></div>
+                    <div class="card"><div class="card-body"><div class="stat"><div class="stat-value">$45k</div><div class="stat-label">Checking</div></div></div></div>
+                    <div class="card"><div class="card-body"><div class="stat"><div class="stat-value">$180k</div><div class="stat-label">Savings</div></div></div></div>
+                    <div class="card"><div class="card-body"><div class="stat"><div class="stat-value">+12%</div><div class="stat-label">YTD Return</div></div></div></div>
+                </div>
+                
+                <div class="grid grid-2">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Accounts</span></div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead><tr><th>Account</th><th>Type</th><th>Balance</th></tr></thead>
+                                <tbody>
+                                    <tr><td>ACC-001</td><td>Checking</td><td>$45,000</td></tr>
+                                    <tr><td>ACC-002</td><td>Savings</td><td>$180,000</td></tr>
+                                    <tr><td>ACC-003</td><td>Investment</td><td>$25,000</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Holdings</span></div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead><tr><th>Symbol</th><th>Shares</th><th>Value</th><th>Gain</th></tr></thead>
+                                <tbody>
+                                    <tr><td>AAPL</td><td>100</td><td>$17,550</td><td class="badge badge-success">+17%</td></tr>
+                                    <tr><td>GOOGL</td><td>50</td><td>$7,500</td><td class="badge badge-success">+8%</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Gaming Page -->
+            <div class="page" id="page-gaming" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">🎮 Gaming Agent</h1>
+                    <p class="page-description">Agentic NPCs, leaderboards, and inventory</p>
+                </div>
+                
+                <div class="grid grid-2">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Leaderboard</span></div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead><tr><th>#</th><th>Player</th><th>Score</th></tr></thead>
+                                <tbody>
+                                    <tr><td>1</td><td>DragonSlayer</td><td>12,450</td></tr>
+                                    <tr><td>2</td><td>WizardKing</td><td>11,200</td></tr>
+                                    <tr><td>3</td><td>ShadowRogue</td><td>10,890</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Active NPCs</span></div>
+                        <div class="card-body">
+                            <table class="table">
+                                <thead><tr><th>NPC</th><th>Role</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Eldrin</td><td>Quest Giver</td><td><span class="badge badge-success">Online</span></td></tr>
+                                    <tr><td>Grimwald</td><td>Merchant</td><td><span class="badge badge-success">Online</span></td></tr>
+                                    <tr><td>Mystara</td><td>Companion</td><td><span class="badge badge-info">AI Active</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Schema Page -->
+            <div class="page" id="page-schema" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">📋 Schema Editor</h1>
+                    <p class="page-description">Define tables and fields</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">SurrealQL</label>
+                            <textarea class="form-input" id="schema-sql">DEFINE TABLE user SCHEMAFULL;
+DEFINE FIELD name ON user TYPE string;
+DEFINE FIELD email ON user TYPE string;
+DEFINE FIELD created ON user TYPE datetime DEFAULT time::now();</textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="runSchema()">Execute</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Tables</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="code-block">user
+document  
+chunk
+entity
+message
+account
+patient
+order</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Query Page -->
+            <div class="page" id="page-query" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">⚡ Query Editor</h1>
+                    <p class="page-description">Execute SurrealQL queries</p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <div class="form-group">
+                            <label class="form-label">SurrealQL Query</label>
+                            <textarea class="form-input" id="query-sql" style="min-height: 200px;">-- Select all users
+SELECT * FROM user LIMIT 10;
+
+-- Count records
+SELECT count() FROM user;
+
+-- Vector search
+SELECT * FROM document 
+WHERE embedding <|5|> $emb;</textarea>
+                        </div>
+                        <button class="btn btn-primary" onclick="runQuery()">Execute</button>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <span class="card-title">Results</span>
+                    </div>
+                    <div class="card-body">
+                        <pre id="query-results">No results yet. Run a query to see results.</pre>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Explorer Page -->
+            <div class="page" id="page-explorer" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">📁 Data Explorer</h1>
+                    <p class="page-description">Browse your SurrealDB data</p>
+                </div>
+                
+                <div class="explorer">
+                    <div class="explorer-tree">
+                        <div class="tree-item selected">user</div>
+                        <div class="tree-item">document</div>
+                        <div class="tree-item">entity</div>
+                        <div class="tree-item">message</div>
+                        <div class="tree-item">account</div>
+                        <div class="tree-item">patient</div>
+                        <div class="tree-item">order</div>
+                        <div class="tree-item">telemetry</div>
+                    </div>
+                    <div class="explorer-content">
+                        <div class="card">
+                            <div class="card-header">
+                                <span class="card-title">user</span>
+                                <button class="btn btn-secondary">+ Add</button>
+                            </div>
+                            <div class="card-body">
+                                <table class="table">
+                                    <thead><tr><th>id</th><th>name</th><th>email</th><th>created</th></tr></thead>
+                                    <tbody>
+                                        <tr><td>user:alice</td><td>Alice</td><td>alice@example.com</td><td>2024-01-15</td></tr>
+                                        <tr><td>user:bob</td><td>Bob</td><td>bob@example.com</td><td>2024-01-16</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Docs Page -->
+            <div class="page" id="page-docs" style="display:none">
+                <div class="page-header">
+                    <h1 class="page-title">📖 SurrealDB Documentation</h1>
+                    <p class="page-description">Quick reference guide</p>
+                </div>
+                
+                <div class="grid grid-2">
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Quick Start</span></div>
+                        <div class="card-body">
+                            <pre># Connect
+await db.connect()
+await db.use({namespace: "test", database: "test"})
+await db.signin({username: "root", password: "root"})
+
+# CRUD
+await db.create("user", {name: "Alice"})
+await db.select("user")
+await db.query("SELECT * FROM user")</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Schema</span></div>
+                        <div class="card-body">
+                            <pre>DEFINE TABLE user SCHEMAFULL;
+DEFINE FIELD name ON user TYPE string;
+DEFINE FIELD email ON user TYPE string;
+DEFINE FIELD age ON user TYPE int;
+
+DEFINE INDEX user_email 
+  ON user FIELDS email UNIQUE;</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Relations</span></div>
+                        <div class="card-body">
+                            <pre>-- RELATE
+RELATE user:alice -> follows -> user:bob
+  SET since = d'2024-01-01'
+
+-- Query
+SELECT <-follows->user.name 
+FROM user:alice</pre>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <div class="card-header"><span class="card-title">Vectors</span></div>
+                        <div class="card-body">
+                            <pre>-- Index
+DEFINE INDEX vec ON doc 
+  FIELDS embedding HNSW 
+  DIMENSION 384 DISTANCE COSINE
+
+-- Search
+SELECT *, vector::distance::knn() AS score
+FROM doc WHERE embedding <|5|> $emb</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Page navigation
+        function showPage(pageId) {
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            
+            // Show selected page
+            document.getElementById('page-' + pageId).style.display = 'block';
+            
+            // Update nav
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            event.target.closest('.nav-item').classList.add('active');
+        }
+        
+        // Vector search
+        function runVectorSearch() {
+            const query = document.getElementById('vector-query').value;
+            const table = document.getElementById('vector-table').value;
+            const k = document.getElementById('vector-k').value;
+            
+            document.getElementById('vector-results').innerHTML = 
+                `Running: SELECT * FROM ${table} WHERE embedding <|${k}|> $embedding\n` +
+                `Query: "${query}"\n` +
+                `Search complete! Found 3 results.`;
+        }
+        
+        // Entity operations
+        function createEntity() {
+            const name = document.getElementById('kg-name').value;
+            const type = document.getElementById('kg-type').value;
+            alert(`CREATE entity SET name='${name}', type='${type}'`);
+        }
+        
+        function createRelation() {
+            const from = document.getElementById('kg-from').value;
+            const rel = document.getElementById('kg-rel').value;
+            const to = document.getElementById('kg-to').value;
+            alert(`RELATE ${from} -> ${rel} -> ${to}`);
+        }
+        
+        // RAG Chat
+        function sendRAG() {
+            const input = document.getElementById('rag-input');
+            const messages = document.getElementById('rag-messages');
+            
+            // Add user message
+            messages.innerHTML += `<div class="chat-message user"><div class="chat-bubble">${input.value}</div></div>`;
+            
+            // Simulate response
+            setTimeout(() => {
+                messages.innerHTML += `<div class="chat-message"><div class="chat-bubble">Based on the retrieved context: ${input.value}</div></div>`;
+                messages.scrollTop = messages.scrollHeight;
+            }, 500);
+            
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        // Live Query
+        function subscribeLive() {
+            const table = document.getElementById('live-table').value;
+            const where = document.getElementById('live-where').value;
+            const sql = where ? `LIVE SELECT * FROM ${table} WHERE ${where}` : `LIVE SELECT * FROM ${table}`;
+            
+            document.getElementById('live-stream').innerHTML = 
+                `<div class="code-block">Subscribed to: ${sql}</div>`;
+        }
+        
+        // Chat
+        function sendChat() {
+            const input = document.getElementById('chat-input');
+            const messages = document.getElementById('chat-messages');
+            
+            messages.innerHTML += `<div class="chat-message user"><div class="chat-bubble">${input.value}</div></div>`;
+            
+            setTimeout(() => {
+                messages.innerHTML += `<div class="chat-message"><div class="chat-bubble">I'm an AI assistant. This is a demo UI!</div></div>`;
+                messages.scrollTop = messages.scrollHeight;
+            }, 500);
+            
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+        }
+        
+        // Schema
+        function runSchema() {
+            const sql = document.getElementById('schema-sql').value;
+            alert(`Executing:\n${sql}`);
+        }
+        
+        // Query
+        function runQuery() {
+            const sql = document.getElementById('query-sql').value;
+            document.getElementById('query-results').innerHTML = 
+                `Results for: ${sql.split(';')[0]}\n` +
+                `[{"id": "user:alice", "name": "Alice"}, {"id": "user:bob", "name": "Bob"}]`;
+        }
+    </script>
+</body>
+</html>
