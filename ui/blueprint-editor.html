@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Blueprint Editor</title>
+    <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #ff6b35;
+            --secondary: #004e89;
+            --accent: #00d4aa;
+            --bg: #0a0a0f;
+            --surface: #12121a;
+            --surface-light: #1a1a24;
+            --text: #e8e8e8;
+            --text-dim: #888;
+        }
+        
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        
+        .app {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            grid-template-rows: 60px 1fr;
+            height: 100vh;
+        }
+        
+        /* Header */
+        .header {
+            grid-column: 1 / -1;
+            background: var(--surface);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+            display: flex;
+            align-items: center;
+            padding: 0 24px;
+            gap: 16px;
+        }
+        
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .header input {
+            flex: 1;
+            max-width: 400px;
+            padding: 8px 16px;
+            background: var(--surface-light);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 14px;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background: var(--surface);
+            border-right: 1px solid rgba(255,255,255,0.05);
+            padding: 16px;
+            overflow-y: auto;
+        }
+        
+        .section-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            color: var(--text-dim);
+            margin-bottom: 12px;
+            letter-spacing: 1px;
+        }
+        
+        .blueprint-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .blueprint-item {
+            padding: 12px 16px;
+            background: var(--surface-light);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .blueprint-item:hover {
+            border-color: var(--primary);
+        }
+        
+        .blueprint-item.active {
+            border-color: var(--accent);
+            background: rgba(0, 212, 170, 0.1);
+        }
+        
+        .bp-name { font-weight: 600; font-size: 14px; }
+        .bp-desc { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+        
+        /* Canvas */
+        .canvas-area {
+            background: var(--bg);
+            position: relative;
+        }
+        
+        #builderCanvas {
+            background: radial-gradient(ellipse at center, #1a1a24 0%, #0a0a0f 100%);
+        }
+        
+        .canvas-toolbar {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            display: flex;
+            gap: 8px;
+        }
+        
+        .tool-btn {
+            width: 40px;
+            height: 40px;
+            background: var(--surface);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        
+        .tool-btn:hover { border-color: var(--primary); }
+        
+        /* Properties Panel */
+        .properties {
+            background: var(--surface);
+            border-left: 1px solid rgba(255,255,255,0.05);
+            padding: 16px;
+            overflow-y: auto;
+        }
+        
+        .prop-group {
+            margin-bottom: 20px;
+        }
+        
+        .prop-label {
+            font-size: 11px;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        
+        .prop-input {
+            width: 100%;
+            padding: 10px 12px;
+            background: var(--surface-light);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+        
+        .prop-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .prop-textarea {
+            width: 100%;
+            height: 100px;
+            padding: 10px 12px;
+            background: var(--surface-light);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 13px;
+            font-family: monospace;
+            resize: vertical;
+        }
+        
+        .save-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, var(--primary), #ff8f5a);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        
+        .export-btn {
+            width: 100%;
+            padding: 12px;
+            background: var(--surface-light);
+            border: 1px solid var(--accent);
+            border-radius: 8px;
+            color: var(--accent);
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        /* Node types */
+        .node-setup { border-left: 3px solid #ff6b35; }
+        .node-train { border-left: 3px solid #00d4aa; }
+        .node-query { border-left: 3px solid #004e89; }
+        .node-chat { border-left: 3px solid #9c27b0; }
+        
+        /* Preview */
+        .code-preview {
+            background: #0d0d12;
+            border-radius: 8px;
+            padding: 12px;
+            font-family: monospace;
+            font-size: 11px;
+            color: #888;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">🔧 Agent Blueprint Editor</div>
+            <input type="text" id="agentName" placeholder="My Agent Name..." value="My Agent">
+            <button class="tool-btn" onclick="importBlueprint()" title="Import">📥</button>
+            <button class="tool-btn" onclick="exportBlueprint()" title="Export">📤</button>
+        </header>
+        
+        <!-- Sidebar: Blueprint List -->
+        <aside class="sidebar">
+            <div class="section-title">📋 Blueprints</div>
+            <div class="blueprint-list">
+                <div class="blueprint-item active" onclick="loadBlueprint('basic')">
+                    <div class="bp-name">Basic Agent</div>
+                    <div class="bp-desc">Simple Q&A agent</div>
+                </div>
+                <div class="blueprint-item" onclick="loadBlueprint('rag')">
+                    <div class="bp-name">Graph RAG</div>
+                    <div class="bp-desc">Vector + Knowledge Graph</div>
+                </div>
+                <div class="blueprint-item" onclick="loadBlueprint('kg')">
+                    <div class="bp-name">Knowledge Graph</div>
+                    <div class="bp-desc">Entity relationships</div>
+                </div>
+                <div class="blueprint-item" onclick="loadBlueprint('tool')">
+                    <div class="bp-name">Tool Calling</div>
+                    <div class="bp-desc">Function tools</div>
+                </div>
+                <div class="blueprint-item" onclick="loadBlueprint('presence')">
+                    <div class="bp-name">Presence</div>
+                    <div class="bp-desc">Real-time online</div>
+                </div>
+                <div class="blueprint-item" onclick="loadBlueprint('langchain')">
+                    <div class="bp-name">LangChain</div>
+                    <div class="bp-desc">Vector store</div>
+                </div>
+            </div>
+            
+            <div class="section-title" style="margin-top: 24px;">🔗 Import URL</div>
+            <input type="text" id="importUrl" placeholder="https://..." style="width:100%;padding:8px;background:var(--surface-light);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:var(--text);font-size:12px;">
+            <button onclick="importFromUrl()" style="width:100%;margin-top:8px;padding:8px;background:var(--primary);border:none;border-radius:6px;color:white;cursor:pointer;">Load</button>
+        </aside>
+        
+        <!-- Canvas: Visual Builder -->
+        <main class="canvas-area">
+            <canvas id="builderCanvas"></canvas>
+            
+            <div class="canvas-toolbar">
+                <button class="tool-btn" onclick="addNode('setup')" title="Add Setup">⚙️</button>
+                <button class="tool-btn" onclick="addNode('train')" title="Add Train">📚</button>
+                <button class="tool-btn" onclick="addNode('query')" title="Add Query">❓</button>
+                <button class="tool-btn" onclick="addNode('chat')" title="Add Chat">💬</button>
+                <button class="tool-btn" onclick="clearCanvas()" title="Clear">🗑️</button>
+            </div>
+        </main>
+        
+        <!-- Properties Panel -->
+        <aside class="properties">
+            <div class="section-title">⚙️ Properties</div>
+            
+            <div class="prop-group">
+                <div class="prop-label">Agent Name</div>
+                <input type="text" class="prop-input" id="propName" value="My Agent">
+            </div>
+            
+            <div class="prop-group">
+                <div class="prop-label">Database URL</div>
+                <input type="text" class="prop-input" id="propDbUrl" value="ws://localhost:8000/rpc">
+            </div>
+            
+            <div class="prop-group">
+                <div class="prop-label">Setup (Schema)</div>
+                <textarea class="prop-textarea" id="propSetup">DEFINE TABLE session SCHEMAFULL;
+DEFINE FIELD user_id ON session TYPE string;</textarea>
+            </div>
+            
+            <div class="prop-group">
+                <div class="prop-label">Train (Data)</div>
+                <textarea class="prop-textarea" id="propTrain">CREATE entity SET name = 'SurrealDB', type = 'database';</textarea>
+            </div>
+            
+            <div class="prop-group">
+                <div class="prop-label">Query Logic</div>
+                <textarea class="prop-textarea" id="propQuery">SELECT * FROM entity LIMIT 5</textarea>
+            </div>
+            
+            <button class="save-btn" onclick="saveBlueprint()">💾 Save</button>
+            <button class="export-btn" onclick="exportCode()">📝 Export Code</button>
+            
+            <div class="section-title" style="margin-top: 24px;">👀 Preview</div>
+            <div class="code-preview" id="codePreview">
+# Click "Export Code" to see generated Python code
+            </div>
+        </aside>
+    </div>
+
+    <script>
+        // Fabric.js Canvas
+        const canvas = new fabric.Canvas('builderCanvas', {
+            width: window.innerWidth - 600,
+            height: window.innerHeight - 60,
+            backgroundColor: 'transparent',
+            selection: true,
+        });
+        
+        // Resize
+        window.addEventListener('resize', () => {
+            canvas.setDimensions({
+                width: window.innerWidth - 600,
+                height: window.innerHeight - 60
+            });
+        });
+        
+        // Node colors
+        const nodeColors = {
+            setup: '#ff6b35',
+            train: '#00d4aa',
+            query: '#004e89',
+            chat: '#9c27b0'
+        };
+        
+        const nodeLabels = {
+            setup: 'Setup',
+            train: 'Train',
+            query: 'Query',
+            chat: 'Chat'
+        };
+        
+        // Add node
+        function addNode(type) {
+            const color = nodeColors[type];
+            const label = nodeLabels[type];
+            
+            // Create node group
+            const rect = new fabric.Rect({
+                width: 140,
+                height: 60,
+                fill: '#1a1a24',
+                stroke: color,
+                strokeWidth: 2,
+                rx: 10,
+                ry: 10,
+            });
+            
+            const text = new fabric.Text(label, {
+                fontSize: 14,
+                fill: '#fff',
+                originX: 'center',
+                originY: 'center',
+            });
+            
+            const group = new fabric.Group([rect, text], {
+                left: 100 + Math.random() * 200,
+                top: 100 + Math.random() * 200,
+                hasControls: true,
+                nodeType: type,
+            });
+            
+            canvas.add(group);
+            canvas.setActiveObject(group);
+        }
+        
+        // Clear canvas
+        function clearCanvas() {
+            canvas.clear();
+            canvas.backgroundColor = 'transparent';
+        }
+        
+        // Load blueprint
+        function loadBlueprint(type) {
+            document.querySelectorAll('.blueprint-item').forEach(el => el.classList.remove('active'));
+            event.target.closest('.blueprint-item').classList.add('active');
+            
+            clearCanvas();
+            
+            const blueprints = {
+                basic: {
+                    name: 'Basic Agent',
+                    setup: 'DEFINE TABLE session SCHEMAFULL;',
+                    train: 'CREATE entity SET name = "SurrealDB";',
+                    query: 'SELECT * FROM entity LIMIT 5;'
+                },
+                rag: {
+                    name: 'Graph RAG Agent',
+                    setup: 'DEFINE TABLE doc SCHEMAFULL;\nDEFINE FIELD embedding ON doc TYPE array<float>;',
+                    train: 'CREATE doc SET title = "Guide", content = "...", embedding = [0.1, 0.2];',
+                    query: 'SELECT *, vector::distance::knn() FROM doc WHERE embedding <|5|> $query;'
+                },
+                kg: {
+                    name: 'Knowledge Graph',
+                    setup: 'DEFINE TABLE entity SCHEMAFULL;\nDEFINE TABLE relates TYPE RELATION;',
+                    train: 'CREATE entity SET name = "Alice";\nRELATE entity:alice -> knows -> entity:bob;',
+                    query: 'SELECT <-knows<-entity FROM entity:alice;'
+                },
+                tool: {
+                    name: 'Tool Calling Agent',
+                    setup: 'DEFINE TABLE tool SCHEMAFULL;\nDEFINE FIELD function ON tool TYPE string;',
+                    train: 'CREATE tool SET name = "search", function = "search_docs($query)";',
+                    query: 'SELECT * FROM tool;'
+                },
+                presence: {
+                    name: 'Presence Agent',
+                    setup: 'DEFINE TABLE presence SCHEMAFULL;\nDEFINE FIELD user ON presence TYPE string;',
+                    train: 'CREATE presence SET user = "alice", online = true;',
+                    query: 'SELECT * FROM presence WHERE online = true;'
+                },
+                langchain: {
+                    name: 'LangChain Agent',
+                    setup: 'DEFINE TABLE document SCHEMAFULL;\nDEFINE FIELD embedding ON document TYPE array<float>;',
+                    train: 'CREATE document SET content = "Python guide", embedding = $embedding;',
+                    query: 'SELECT * FROM document ORDER BY vector::similarity::cosine(embedding, $query) LIMIT 3;'
+                }
+            };
+            
+            const bp = blueprints[type];
+            document.getElementById('propName').value = bp.name;
+            document.getElementById('propSetup').value = bp.setup;
+            document.getElementById('propTrain').value = bp.train;
+            document.getElementById('propQuery').value = bp.query;
+            
+            // Add nodes
+            addNode('setup');
+            addNode('train');
+            addNode('query');
+            
+            if (type === 'rag' || type === 'kg' || type === 'langchain') {
+                addNode('chat');
+            }
+        }
+        
+        // Save blueprint
+        function saveBlueprint() {
+            const blueprint = {
+                name: document.getElementById('propName').value,
+                dbUrl: document.getElementById('propDbUrl').value,
+                setup: document.getElementById('propSetup').value,
+                train: document.getElementById('propTrain').value,
+                query: document.getElementById('propQuery').value,
+            };
+            
+            localStorage.setItem('agentBlueprint', JSON.stringify(blueprint));
+            alert('Blueprint saved!');
+        }
+        
+        // Export code
+        function exportCode() {
+            const name = document.getElementById('propName').value;
+            const setup = document.getElementById('propSetup').value;
+            const train = document.getElementById('propTrain').value;
+            const query = document.getElementById('propQuery').value;
+            
+            const code = `#!/usr/bin/env python3
+"""
+Agent: ${name}
+Generated by Agent Blueprint Editor
+"""
+
+import asyncio
+from surrealdb import Surreal
+
+class ${name.replace(/\s+/g, '')}Agent:
+    def __init__(self, db_url="ws://localhost:8000/rpc"):
+        self.db_url = db_url
+        self.db = None
+    
+    async def connect(self):
+        self.db = Surreal(self.db_url)
+        await self.db.connect()
+        await self.db.use({"namespace": "memory", "database": "agent"})
+        await self.db.signin({"username": "root", "password": "root"})
+    
+    async def setup(self):
+        """Setup schema"""
+${setup.split('\n').map(l => `        await self.db.query("${l}")`).join('\n')}
+    
+    async def train(self):
+        """Add training data"""
+${train.split('\n').map(l => `        await self.db.query("${l}")`).join('\n')}
+    
+    async def query(self, question: str):
+        """Process query"""
+${query.split('\n').map(l => `        # ${l}`).join('\n')}
+        return {"answer": "..."}
+    
+    async def run(self):
+        await self.connect()
+        await self.setup()
+        await self.train()
+        print("Agent ready!")
+        
+        while True:
+            q = input("You: ")
+            if q.lower() in ["quit", "exit"]:
+                break
+            result = await self.query(q)
+            print(f"Bot: {result['answer']}")
+
+if __name__ == "__main__":
+    agent = ${name.replace(/\s+/g, '')}Agent()
+    asyncio.run(agent.run())
+`;
+            
+            document.getElementById('codePreview').textContent = code;
+            
+            // Download
+            const blob = new Blob([code], {type: 'text/python'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${name.toLowerCase().replace(/\s+/g, '_')}_agent.py`;
+            a.click();
+        }
+        
+        // Import from URL
+        function importFromUrl() {
+            const url = document.getElementById('importUrl').value;
+            if (!url) {
+                alert('Enter a URL');
+                return;
+            }
+            
+            // Load via fetch
+            fetch(url)
+                .then(r => r.text())
+                .then(code => {
+                    const blob = new Blob([code], {type: 'text/python'});
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'imported_agent.py';
+                    a.click();
+                    alert('Downloaded! Edit it in your AI tool.');
+                })
+                .catch(e => alert('Error: ' + e.message));
+        }
+        
+        // Import blueprint
+        function importBlueprint() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.py,.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = e => {
+                    alert('Import ready! Save and use in your project.');
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+        
+        // Export blueprint
+        function exportBlueprint() {
+            const blueprint = {
+                name: document.getElementById('propName').value,
+                dbUrl: document.getElementById('propDbUrl').value,
+                setup: document.getElementById('propSetup').value,
+                train: document.getElementById('propTrain').value,
+                query: document.getElementById('propQuery').value,
+            };
+            
+            const blob = new Blob([JSON.stringify(blueprint, null, 2)], {type: 'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${blueprint.name.toLowerCase().replace(/\s+/g, '_')}_blueprint.json`;
+            a.click();
+        }
+        
+        // Load saved blueprint on init
+        const saved = localStorage.getItem('agentBlueprint');
+        if (saved) {
+            try {
+                const bp = JSON.parse(saved);
+                document.getElementById('propName').value = bp.name || 'My Agent';
+                document.getElementById('propSetup').value = bp.setup || '';
+                document.getElementById('propTrain').value = bp.train || '';
+                document.getElementById('propQuery').value = bp.query || '';
+            } catch (e) {}
+        }
+        
+        // Add initial nodes
+        loadBlueprint('basic');
+    </script>
+</body>
+</html>
