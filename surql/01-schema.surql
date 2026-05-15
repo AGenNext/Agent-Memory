@@ -119,3 +119,128 @@ DEFINE ANALYZER article_analyzer TOKENIZERS blank, classics FILTERS ascii, lower
 DEFINE INDEX article_embedding ON article FIELDS embedding MTREE dimensionality 512;
 
 DEFINE INDEX decision_query_embedding ON response_trace FIELDS query_embedding MTREE dimensionality 512;
+
+-- =====================================================
+-- EXTENDED SCHEMA: Additional Entity Tables
+-- =====================================================
+
+-- User table - End users of the system
+DEFINE TABLE user SCHEMAFULL;
+DEFINE FIELD id ON user TYPE string;
+DEFINE FIELD name ON user TYPE string;
+DEFINE FIELD email ON user TYPE string;
+DEFINE FIELD role ON user TYPE string DEFAULT "user";
+DEFINE FIELD preferences ON user TYPE option<object>;
+DEFINE FIELD created ON user TYPE datetime DEFAULT time::now();
+
+-- Session table - Agent conversation sessions
+DEFINE TABLE session SCHEMAFULL;
+DEFINE FIELD id ON session TYPE string;
+DEFINE FIELD user_id ON session TYPE record(user);
+DEFINE FIELD status ON session TYPE string DEFAULT "active";
+DEFINE FIELD started ON session TYPE datetime DEFAULT time::now();
+DEFINE FIELD ended ON session TYPE option<datetime>;
+DEFINE FIELD rating ON session TYPE option<int>;
+
+-- Tool call table - Individual tool executions
+DEFINE TABLE tool_call SCHEMAFULL;
+DEFINE FIELD id ON tool_call TYPE string;
+DEFINE FIELD session ON session TYPE record(session);
+DEFINE FIELD step ON tool_call TYPE int;
+DEFINE FIELD tool_name ON tool_call TYPE string;
+DEFINE FIELD arguments ON tool_call TYPE object;
+DEFINE FIELD result ON tool_call TYPE string;
+DEFINE FIELD duration_ms ON tool_call TYPE int;
+DEFINE FIELD created ON tool_call TYPE datetime DEFAULT time::now();
+
+-- Feedback table - User ratings/thumbnails
+DEFINE TABLE feedback SCHEMAFULL;
+DEFINE FIELD id ON feedback TYPE string;
+DEFINE FIELD session ON session TYPE record(session);
+DEFINE FIELD response ON response_trace TYPE record(response_trace);
+DEFINE FIELD rating ON feedback TYPE int;
+DEFINE FIELD comment ON feedback TYPE option<string>;
+DEFINE FIELD created ON feedback TYPE datetime DEFAULT time::now();
+
+-- Entity table - Extracted entities from conversations
+DEFINE TABLE entity SCHEMAFULL;
+DEFINE FIELD id ON entity TYPE string;
+DEFINE FIELD session ON session TYPE record(session);
+DEFINE FIELD type ON entity TYPE string;
+DEFINE FIELD name ON entity TYPE string;
+DEFINE FIELD properties ON entity TYPE object;
+DEFINE FIELD confidence ON entity TYPE float DEFAULT 1.0;
+DEFINE FIELD created ON entity TYPE datetime DEFAULT time::now();
+
+-- Relationship table - Discovered entity relationships
+DEFINE TABLE relationship SCHEMAFULL;
+DEFINE FIELD id ON relationship TYPE string;
+DEFINE FIELD session ON session TYPE record(session);
+DEFINE FIELD from_entity ON relationship TYPE record(entity);
+DEFINE FIELD to_entity ON relationship TYPE record(entity);
+DEFINE FIELD relation_type ON relationship TYPE string;
+DEFINE FIELD confidence ON relationship TYPE float DEFAULT 1.0;
+DEFINE FIELD created ON relationship TYPE datetime DEFAULT time::now();
+
+-- Knowledge table - General knowledge facts
+DEFINE TABLE knowledge SCHEMAFULL;
+DEFINE FIELD id ON knowledge TYPE string;
+DEFINE FIELD fact ON knowledge TYPE string;
+DEFINE FIELD category ON knowledge TYPE string;
+DEFINE FIELD source ON knowledge TYPE string;
+DEFINE FIELD verified ON knowledge TYPE bool DEFAULT false;
+DEFINE FIELD embedding ON knowledge TYPE array<float>(512);
+DEFINE FIELD created ON knowledge TYPE datetime DEFAULT time::now();
+
+-- Context table - Retrieved context chunks
+DEFINE TABLE context_chunk SCHEMAFULL;
+DEFINE FIELD id ON context_chunk TYPE string;
+DEFINE FIELD session ON session TYPE record(session);
+DEFINE FIELD source_type ON context_chunk TYPE string;
+DEFINE FIELD source_id ON context_chunk TYPE string;
+DEFINE FIELD content ON context_chunk TYPE string;
+DEFINE FIELD embedding ON context_chunk TYPE array<float>(512);
+DEFINE FIELD relevance ON context_chunk TYPE float;
+DEFINE FIELD created ON context_chunk TYPE datetime DEFAULT time::now();
+
+-- Additional Graph Relations
+DEFINE TABLE creates SCHEMAFULL;
+DEFINE FIELD in ON creates TYPE record(user);
+DEFINE FIELD out ON creates TYPE record(session);
+
+DEFINE TABLE has SCHEMAFULL;
+DEFINE FIELD in ON has TYPE record(session);
+DEFINE FIELD out ON has TYPE record(decision_step);
+
+DEFINE TABLE executes SCHEMAFULL;
+DEFINE FIELD in ON executes TYPE record(decision_step);
+DEFINE FIELD out ON executes TYPE record(tool_call);
+
+DEFINE TABLE rates SCHEMAFULL;
+DEFINE FIELD in ON rates TYPE record(session);
+DEFINE FIELD out ON rates TYPE record(feedback);
+
+DEFINE TABLE responded_by SCHEMAFULL;
+DEFINE FIELD in ON responded_by TYPE record(response_trace);
+DEFINE FIELD out ON responded_by TYPE record(feedback);
+
+DEFINE TABLE has_entity SCHEMAFULL;
+DEFINE FIELD in ON has_entity TYPE record(session);
+DEFINE FIELD out ON has_entity TYPE record(entity);
+
+DEFINE TABLE relates_to_entity SCHEMAFULL;
+DEFINE FIELD in ON relates_to_entity TYPE record(entity);
+DEFINE FIELD out ON relates_to_entity TYPE record(relationship);
+
+DEFINE TABLE has_chunk SCHEMAFULL;
+DEFINE FIELD in ON has_chunk TYPE record(session);
+DEFINE FIELD out ON has_chunk TYPE record(context_chunk);
+
+DEFINE TABLE references_knowledge SCHEMAFULL;
+DEFINE FIELD in ON references_knowledge TYPE record(context_chunk);
+DEFINE FIELD out ON references_knowledge TYPE record(knowledge);
+
+-- Vector Indexes for new tables
+DEFINE INDEX knowledge_embedding ON knowledge FIELDS embedding MTREE dimensionality 512;
+DEFINE INDEX context_embedding ON context_chunk FIELDS embedding MTREE dimensionality 512;
+DEFINE INDEX entity_name ON entity FIELDS name;
