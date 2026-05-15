@@ -52,31 +52,44 @@ Agent memory is a persistent, queryable memory layer that enables AI agents to:
 - **uv** - Python package manager (install via `pip install uv`)
 - **OpenAI API key** - For embeddings and LLM
 
-## Quick Start
+## Storage Modes
 
-1. **Clone and setup:**
-   ```bash
-   cd Agent-Memory
-   cp .env.example .env
-   # Edit .env with your OpenAI API key
-   ```
+### 1. In-Memory (fastest, no persistence)
+```bash
+surreal start --user root --pass root memory
+```
 
-2. **Start SurrealDB + Surrealist UI:**
-   ```bash
-   docker-compose up -d surrealdb surrealist
-   # Open http://localhost:3000 in browser
-   ```
+### 2. File-Backed (RocksDB - default)
+```bash
+surreal start --user root --pass root rocksdb:///data/memory.db
+```
 
-3. **Load schema + data:**
-   ```bash
-   uv sync
-   uv run load.py
-   ```
+### 3. File-Backed (SurrealKV - modern)
+```bash
+surreal start --user root --pass root surrealkv:///data/memory.db
+```
 
-4. **Run the agent:**
-   ```bash
-   uv run agent.py
-   ```
+### 4. Distributed (TiKV cluster)
+```bash
+# Start TiKV first
+tiup playground --tag surrealdb --mode tikv-slim --pd 1 --kv 1
+
+# Then SurrealDB with TiKV
+surreal start --user root --pass root tikv://127.0.0.1:2379
+```
+
+### Docker Compose Modes
+
+```bash
+# Single node (default)
+docker-compose up -d surrealdb
+
+# With Surrealist UI
+docker-compose up -d surrealdb surrealist
+
+# Distributed (TiKV)
+docker-compose -f docker-compose.yml up -d pd tikv surrealdb-tikv
+```
 
 ## Surrealist Web UI
 
