@@ -31,5 +31,22 @@ services:
              echo 'Starting agent...' && 
              uv run agent.py"
 
+  # Surrealist Web UI
+  surrealist:
+    image: surrealdb/surrealist:latest
+    container_name: agent-memory-ui
+    ports:
+      - "3000:3000"
+    environment:
+      - SURREALIST_HOST=0.0.0.0
+      - SURREALIST_PORT=3000
+      - SURREAL_DB_URL=ws://surrealdb:8000/rpc
+      - SURREAL_DB_USER=root
+      - SURREAL_DB_PASS=root
+      - SURREAL_DB_NAMESPACE=memory
+      - SURREAL_DB_DATABASE=agent
+    depends_on:
+      - surrealdb
+
 volumes:
   surrealdb_data:

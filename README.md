@@ -61,12 +61,13 @@ Agent memory is a persistent, queryable memory layer that enables AI agents to:
    # Edit .env with your OpenAI API key
    ```
 
-2. **Start SurrealDB:**
+2. **Start SurrealDB + Surrealist UI:**
    ```bash
-   surreal start --log trace --user root --pass root --allow-funcs --allow-net memory
+   docker-compose up -d surrealdb surrealist
+   # Open http://localhost:3000 in browser
    ```
 
-3. **Load schema + data + embeddings:**
+3. **Load schema + data:**
    ```bash
    uv sync
    uv run load.py
@@ -76,6 +77,23 @@ Agent memory is a persistent, queryable memory layer that enables AI agents to:
    ```bash
    uv run agent.py
    ```
+
+## Surrealist Web UI
+
+After running `docker-compose up`, access the Surrealist UI at:
+
+- **URL:** http://localhost:3000
+- **Database:** `memory/agent` (namespace/database)
+- **User:** `root`
+- **Pass:** `root`
+
+### Surrealist Features:
+- **Query View** - Run SurrealQL queries with tabs
+- **Graph View** - Visualize entity relationships
+- **Table Explorer** - Browse records visually
+- **Schema Designer** - Create tables/fields
+- **Live Queries** - Real-time updates
+- **Authentication** - Manage users/scopes
 
 ## Project Structure
 
