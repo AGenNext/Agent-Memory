@@ -8,10 +8,11 @@ Tools, capabilities, and built-in features.
 |------|------|-------------|
 | **Functions** | `tools/functions.py` | SurrealQL functions |
 | **LIVE Queries** | `tools/live_queries.py` | Real-time subscriptions |
+| **Streaming** | `tools/streaming.py` | WebSocket streaming |
 | **Vector Search** | `tools/vector_search.py` | KNN & similarity |
 | **Full-Text** | `tools/fulltext_search.py` | BM25 & highlight |
-| **Streaming** | `tools/streaming.py` | WebSocket streaming |
 | **RPC** | `tools/rpc.py` | Remote procedure calls |
+| **Knowledge Graph** | `tools/knowledge_graph.py` | Graph & ontological modeling |
 
 ## Usage
 
@@ -65,4 +66,23 @@ await rpc.connect()
 await rpc.create("user", {"name": "Alice"})
 await rpc.relate("user:alice", "user:bob", "follows")
 await rpc.call_function("math::sum", [1, 2, 3])
+```
+
+### Knowledge Graph
+```python
+from tools.knowledge_graph import KnowledgeGraphTool
+
+kg = KnowledgeGraphTool()
+await kg.connect()
+
+# Define ontology
+await kg.define_entity("person", {"name": "string", "role": "string"})
+await kg.define_relation("knows", "person", "person", {"confidence": "float"})
+
+# Create nodes & edges
+await kg.create_node("person", {"name": "Alice"})
+await kg.relate("person:alice", "person:bob", "knows", {"confidence": 0.9})
+
+# Traverse & filter
+contacts = await kg.trusted_contacts("person:alice", "knows", 0.9)
 ```
