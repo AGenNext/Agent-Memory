@@ -1,18 +1,52 @@
 version: '3.8'
 
+# Agent Memory Docker Compose
+# Supports both in-memory and file-backed modes
+
 services:
-  # SurrealDB database
+  # SurrealDB database (file-backed with RocksDB)
   surrealdb:
     image: surrealdb/surrealdb:latest
     container_name: agent-memory-db
     ports:
       - "8000:8000"
-    command: start --log trace --user root --pass root --allow-funcs --allow-net --allow-experimental memory
+    command: >
+      start 
+      --log trace 
+      --user root 
+      --pass root 
+      --allow-funcs 
+      --allow-net 
+      --allow-experimental 
+      rocksdb:///data/memory.db
     volumes:
-      - surrealdb_data:/memory
+      - surrealdb_data:/data
     environment:
       - SURREALDB_USER=root
       - SURREALDB_PASS=root
+
+  # SurrealDB In-Memory (alternative - uncomment to use)
+  # surrealdb:
+  #   image: surrealdb/surrealdb:latest
+  #   container_name: agent-memory-db
+  #   ports:
+  #     - "8000:8000"
+  #   command: start --log trace --user root --pass root --allow-funcs --allow-net --allow-experimental memory
+
+  # SurrealDB with SurrealKV (alternative - uncomment to use)
+  # surrealkv:
+  #   image: surrealdb/surrealdb:latest
+  #   container_name: agent-memory-db
+  #   ports:
+  #     - "8000:8000"
+  #   command: >
+  #     start 
+  #     --log trace 
+  #     --user root 
+  #     --pass root 
+  #     --allow-funcs 
+  #     --allow-net 
+  #     surrealkv:///data/memory.db
 
   # Agent application
   agent:

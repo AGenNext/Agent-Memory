@@ -7,8 +7,13 @@ Build AI agents with persistent memory using knowledge graphs and vectors on Sur
 from .client import AgentMemory
 from .config import Config
 from .types import Session, Message, Entity, Relationship
+from .orchestrator import Orchestrator
+from .chat import ChatStream
 
 __version__ = "0.1.0"
+
+# Browser export (use in browser/deno)
+# from .browser import BrowserMemory
 
 __all__ = [
     "AgentMemory",
@@ -17,4 +22,6 @@ __all__ = [
     "Message",
     "Entity",
     "Relationship",
+    "Orchestrator",
+    "ChatStream",
 ]
