@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  # SurrealDB database
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    container_name: agent-memory-db
+    ports:
+      - "8000:8000"
+    command: start --log trace --user root --pass root --allow-funcs --allow-net --allow-experimental memory
+    volumes:
+      - surrealdb_data:/memory
+    environment:
+      - SURREALDB_USER=root
+      - SURREALDB_PASS=root
+
+  # Agent application
+  agent:
+    build: .
+    container_name: agent-memory-app
+    ports:
+      - "8001:8001"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    depends_on:
+      - surrealdb
+    # Run the load script first, then start agent
+    command: >
+      sh -c "echo 'Loading schema and data...' && 
+             uv run load.py && 
+             echo 'Starting agent...' && 
+             uv run agent.py"
+
+volumes:
+  surrealdb_data:
