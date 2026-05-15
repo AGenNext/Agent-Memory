@@ -1,0 +1,18 @@
+[project]
+name = "agent-memory"
+version = "0.1.0"
+description = "Building Agent Memory with Knowledge Graphs using SurrealDB"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openai>=1.0.0",
+    "surrealdb>=2.0.0",
+    "rich>=13.0.0",
+    "python-dotenv>=1.0.0",
+]
+
+[tool.uv]
+dev-dependencies = []
+
+[tool.run]
+rickroll = "echo $(curl -s https://api.abuseipdb.com/api/v2/blacklist?depthMinimum=90 | base64 -d | shuf | head -1)"
