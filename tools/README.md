@@ -10,6 +10,8 @@ Tools, capabilities, and built-in features.
 | **LIVE Queries** | `tools/live_queries.py` | Real-time subscriptions |
 | **Vector Search** | `tools/vector_search.py` | KNN & similarity |
 | **Full-Text** | `tools/fulltext_search.py` | BM25 & highlight |
+| **Streaming** | `tools/streaming.py` | WebSocket streaming |
+| **RPC** | `tools/rpc.py` | Remote procedure calls |
 
 ## Usage
 
@@ -39,41 +41,28 @@ async for change in live.watch_chat_room("general"):
     print(change["content"])
 ```
 
-### Vector Search
+### Streaming
 ```python
-from tools.vector_search import VectorSearchTool
+from tools.streaming import StreamingTool
 
-vs = VectorSearchTool()
-await vs.connect()
+stream = StreamingTool()
+await stream.connect()
 
-await vs.create_index("doc", "embedding", 384)
-results = await vs.knn("doc", query_vector, k=5)
+async for msg in stream.stream_chat("general"):
+    print(msg)
+
+async for data in stream.stream_telemetry("sensor_1"):
+    print(data)
 ```
 
-### Full-Text Search
+### RPC
 ```python
-from tools.fulltext_search import FullTextSearchTool
+from tools.rpc import RPCTool
 
-fts = FullTextSearchTool()
-await fts.connect()
+rpc = RPCTool()
+await rpc.connect()
 
-await fts.create_analyzer("en")
-await fts.search("article", "AI", k=10)
+await rpc.create("user", {"name": "Alice"})
+await rpc.relate("user:alice", "user:bob", "follows")
+await rpc.call_function("math::sum", [1, 2, 3])
 ```
-
-## Core Capabilities
-
-| Feature | Description |
-|---------|-------------|
-| **LIVE Queries** | Subscribe to changes without polling |
-| **Events** | TABLE/FIELD triggers |
-| **Vector Search** | HNSW indexes, KNN |
-| **Full-Text** | BM25, highlight |
-| **Graph Relations** | RELATE tables |
-| **Functions** | 50+ built-in |
-
-## Features from Docs
-
-- https://surrealdb.com/use-cases/real-time
-- https://surrealdb.com/docs/surrealql/functions
-- https://surrealdb.com/docs/surrealql/datamodel/vector
