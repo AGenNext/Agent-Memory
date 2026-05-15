@@ -1,81 +1,54 @@
-# Agent Skills for SurrealDB
+# SurrealDB Skills - Learning & Agent Skills
 
-Based on: https://surrealdb.com/docs/build/ai-agents/agent-skills
+## Available Skills
 
-## Installation
+Based on SurrealDB docs and official agent-skills.
 
-### Using Skills CLI
+## Install Official Skills
 
 ```bash
-# Install all skills
+# All skills
 npx skills add surrealdb/agent-skills
 
-# Install specific skill
+# Specific
 npx skills add surrealdb/agent-skills --skill surrealql
 npx skills add surrealdb/agent-skills --skill surrealdb-vector
 npx skills add surrealdb/agent-skills --skill surrealdb-python
 ```
 
-### Manual Setup
+## Skills Registry
 
 ```bash
-# Clone skills
-git clone https://github.com/surrealdb/agent-skills.git
+# Search community skills
+npx skills find surrealdb
 
-# Copy to your agent's context directory
-# - Claude Code: ~/.claude/skills/
-# - Cursor: .cursor/rules/
-# - GitHub Copilot: Use agent rules
+# Install from registry
+npx skills add community/skill-name
 ```
 
----
+## Local Skills
 
-## Available Skills
+| File | Description |
+|------|-------------|
+| **surrealql.md** | SurrealQL query language |
+| **python.md** | Python SDK |
+| **javascript.md** | JavaScript/TypeScript SDK |
+| **vector-search.md** | Vector search & RAG |
+| **query.md** | Query patterns |
+| **data-models.md** | Multi-model data |
+| **admin.md** | Administration |
+| **registry.md** | Skills CLI guide |
+| **official.md** | Official skills |
 
-| Skill | What it covers |
-|-------|---------------|
-| **surrealql** | SurrealQL query language, schema, graph traversals |
-| **surrealdb-vector** | Vector search, HNSW indexes, KNN queries |
-| **surrealdb-python** | Python SDK in client/server and embedded mode |
+## Learn
 
----
+| Course | Description |
+|--------|-------------|
+| 01-querying-fundamentals | Basic queries |
+| 02-advanced-querying | Advanced patterns |
+| 03-data-models | Documents, graphs, vectors |
 
-## Usage in AI Tools
+## Resources
 
-### Cursor / Windsurf
-
-```
-@https://raw.githubusercontent.com/AGenNext/Agent-Memory/main/skills/query.md
-
-Write a query to find users who bought product X
-```
-
-### Claude Code
-
-```
-Use the SurrealQL skill to write a schema for a blog
-```
-
-### GitHub Copilot
-
-```
-# Using agent-rules from surrealdb/agent-rules
-Write a vector search query
-```
-
----
-
-## Skill Files
-
-- `skills/query.md` - SurrealQL queries
-- `skills/data-models.md` - Multi-model data
-- `skills/admin.md` - Administration
-- `skills/vector-search.md` - Vector/RAG
-
----
-
-## Learn More
-
-- [SurrealDB Agent Skills](https://github.com/surrealdb/agent-skills)
-- [Agent Rules](https://surrealdb.com/docs/build/ai-agents/agent-rules)
-- [AI Frameworks](https://surrealdb.com/docs/build/ai-agents/ai-frameworks)
+- [Official Skills](https://github.com/surrealdb/agent-skills)
+- [Skills.sh Registry](https://skills.sh)
