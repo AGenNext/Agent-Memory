@@ -1146,3 +1146,229 @@ DEFINE INDEX webhook_event ON webhook FIELDS events;
 DEFINE INDEX job_status_time ON job FIELDS status, created;
 DEFINE INDEX tenant_plan ON tenant FIELDS plan;
 DEFINE INDEX feedback_session ON feedback FIELDS session;
+-- =====================================================
+-- SURREALDB EXTENSIONS (WebAssembly)
+-- =====================================================
+
+-- =====================================================
+-- Extension: Hybrid Search Function
+-- =====================================================
+DEFINE FUNCTION fn::hybrid_search($query_text, $limit, $threshold) [
+    -- Combine text search with vector search using reciprocal rank fusion
+    LET $text_hits = (
+        SELECT id, search::score(1) AS score 
+        FROM article 
+        WHERE content @1@ $query_text 
+        ORDER BY score DESC 
+        LIMIT $limit
+    );
+    LET $vec_hits = (
+        SELECT id, vector::distance::knn() AS distance 
+        FROM article 
+        WHERE embedding <|$limit,100|> fn::embed($query_text)
+    );
+    SELECT search::rrf([$text_hits, $vec_hits], $limit, $threshold) AS results
+];
+
+-- =====================================================
+-- Extension: Entity Linker
+-- =====================================================
+DEFINE FUNCTION fn::link_entities($session_id, $entity_type, $entity_name, $properties) [
+    -- Check if entity already exists
+    LET $existing = (
+        SELECT id FROM entity 
+        WHERE session = $session_id 
+        AND type = $entity_type 
+        AND string::lowercase(name) = string::lowercase($entity_name)
+        LIMIT 1
+    );
+    
+    IF array::len($existing) > 0 THEN
+        -- Return existing entity
+        RETURN $existing[0].id
+    ELSE
+        -- Create new entity
+        LET $new_id = uuid::v4();
+        CREATE entity:$new_id SET
+            session = $session_id,
+            type = $entity_type,
+            name = $entity_name,
+            properties = $properties,
+            created = time::now()
+        ;
+        RETURN $new_id
+    END
+];
+
+-- =====================================================
+-- Extension: Embed Text
+-- =====================================================
+DEFINE FUNCTION fn::embed($text) [
+    -- Placeholder for embedding generation
+    -- In production, call embedding model via extension
+    -- This would call external LLM for embeddings
+    RETURN [0.0, 0.0, 0.0]
+];
+
+-- =====================================================
+-- Extension: Calculate Token Cost
+-- =====================================================
+DEFINE FUNCTION fn::token_cost($prompt_tokens, $completion_tokens, $model) [
+    LET $input_cost = match $model {
+        'gpt-4o' => 0.005,
+        'gpt-4o-mini' => 0.00015,
+        'gpt-4-turbo' => 0.01,
+        default => 0.01
+    };
+    LET $output_cost = match $model {
+        'gpt-4o' => 0.015,
+        'gpt-4o-mini' => 0.0006,
+        'gpt-4-turbo' => 0.03,
+        default => 0.03
+    };
+    RETURN ($prompt_tokens / 1000.0 * $input_cost) + ($completion_tokens / 1000.0 * $output_cost)
+];
+
+-- =====================================================
+-- Extension: Extract Entities (LLM-based)
+-- =====================================================
+DEFINE FUNCTION fn::extract_entities($text, $session_id) [
+    -- This would call an LLM to extract entities
+    -- Returns array of {type, name, properties}
+    -- In production: call external LLM
+    RETURN [
+        {type: "unknown", name: "extraction not implemented", properties: {}}
+    ]
+];
+
+-- =====================================================
+-- Extension: Generate Summary
+-- =====================================================
+DEFINE FUNCTION fn::summarize($context, $max_tokens) [
+    -- Placeholder for LLM summarization
+    -- In production: call LLM to summarize
+    RETURN string::slice($context, 0, $max_tokens)
+];
+
+-- =====================================================
+-- Extension: Vector Similarity Search
+-- =====================================================
+DEFINE FUNCTION fn::vector_search($table, $field, $query, $limit, $threshold) [
+    LET $emb = fn::embed($query);
+    SELECT id, vector::distance::knn() AS distance
+    FROM type::table($table)
+    WHERE type::field($field) <|$limit,$threshold|> $emb
+    ORDER BY distance ASC
+    LIMIT $limit
+];
+
+-- =====================================================
+-- Extension: Session Summary
+-- =====================================================
+DEFINE FUNCTION fn::session_summary($session_id) [
+    LET $decisions = (
+        SELECT action, tool, result_summary, created
+        FROM decision_step
+        WHERE session = $session_id
+        ORDER BY created ASC
+    );
+    LET $response = (
+        SELECT response, created
+        FROM response_trace
+        WHERE session = $session_id
+        ORDER BY created DESC
+        LIMIT 1
+    );
+    RETURN {
+        session: $session_id,
+        decision_count: array::len($decisions),
+        last_response: $response[0].response,
+        decisions: $decisions
+    }
+];
+
+-- =====================================================
+-- Extension: Analyze Sentiment
+-- =====================================================
+DEFINE FUNCTION fn::analyze_sentiment($text) [
+    -- Simple placeholder for sentiment analysis
+    -- In production: call ML model
+    LET $words = string::words($text);
+    LET $positive = ["good", "great", "excellent", "amazing", "love", "thanks", "helpful"];
+    LET $negative = ["bad", "terrible", "hate", "bug", "error", "broken", "worst"];
+    LET $score = 0.5;
+    
+    FOR $word IN $words DO
+        IF array::contains($positive, string::lowercase($word)) THEN
+            LET $score = $score + 0.1
+        END;
+        IF array::contains($negative, string::lowercase($word)) THEN
+            LET $score = $score - 0.1
+        END
+    END;
+    
+    RETURN {
+        score: math::clamp($score, 0.0, 1.0),
+        label: if $score > 0.6 then "positive" else if $score < 0.4 then "negative" else "neutral" end end
+    }
+];
+
+-- =====================================================
+-- Extension: Rate Limiter
+-- =====================================================
+DEFINE FUNCTION fn::check_rate_limit($user_id, $endpoint, $limit, $window) [
+    LET $now = time::now();
+    LET $window_start = $now - $window;
+    
+    LET $recent = (
+        SELECT count() AS count
+        FROM api_usage
+        WHERE user = $user_id
+        AND endpoint = $endpoint
+        AND created > $window_start
+    );
+    
+    IF $recent[0].count >= $limit THEN
+        RETURN {allowed: false, remaining: 0, reset_at: $now + $window}
+    END;
+    
+    RETURN {allowed: true, remaining: $limit - $recent[0].count, reset_at: $now + $window}
+];
+
+-- =====================================================
+-- Extension: Cache Get/Set
+-- =====================================================
+DEFINE FUNCTION fn::cache_get($key) [
+    SELECT * FROM cache WHERE key = $key AND (expires IS NONE OR expires > time::now()) LIMIT 1
+];
+
+DEFINE FUNCTION fn::cache_set($key, $value, $ttl) [
+    LET $id = uuid::v4();
+    LET $expires = if $ttl > 0 then time::now() + $ttl else NONE end;
+    CREATE cache:$id SET
+        key = $key,
+        value = $value,
+        hash = crypto::hash::sha256($value),
+        ttl = $ttl,
+        created = time::now(),
+        expires = $expires
+    ;
+    RETURN $id
+];
+
+-- =====================================================
+-- Extension: Validate Schema
+-- =====================================================
+DEFINE FUNCTION fn::validate_record($table, $data) [
+    -- Check required fields exist
+    LET $table_def = (SELECT fields FROM !$table LIMIT 1);
+    LET $errors = [];
+    
+    -- This would validate against table schema
+    -- In production: check all required fields
+    
+    RETURN {
+        valid: array::len($errors) = 0,
+        errors: $errors
+    }
+];
