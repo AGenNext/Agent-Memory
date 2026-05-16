@@ -30,6 +30,57 @@ This repository is not only about memory. It is a practical playground for compa
 
 Each sample agent works with the same underlying memory and retrieval concepts, making it easier to compare framework ergonomics and tradeoffs.
 
+## Framework Comparison
+
+The sample agents implement the same core support-agent workflow in different frameworks:
+
+1. Review similar past decisions.
+2. Search relevant knowledge-base articles.
+3. Traverse related products, tickets, and solutions.
+4. Produce a clear support answer.
+5. Trace the reasoning and retrieval steps.
+
+This makes it easier to compare how each framework stacks up for the same task.
+
+| Dimension | OpenAI SDK | PydanticAI | LangChain | LangGraph |
+| --- | --- | --- | --- | --- |
+| Main style | Low-level, explicit tool-calling loop | Typed agent abstraction | Tool and chain orchestration | Explicit graph/state-machine workflow |
+| Best for | Maximum control and transparency | Type safety and structured outputs | Ecosystem integrations and familiar abstractions | Multi-step workflows with enforced control flow |
+| Tool definition | Manual functions and tool schemas | Python functions with Pydantic models | LangChain tool wrappers | Nodes and edges in a graph workflow |
+| Control flow | Fully manual | Mostly agent-managed | Agent/executor-managed | Explicit state transitions |
+| Structured outputs | Manual parsing and validation | First-class Pydantic models | Available through LangChain patterns | Defined through graph state and node contracts |
+| Observability | Custom tracing is easy to wire directly | Tracing can be attached around typed tools | Uses LangChain callbacks/tracing patterns | State transitions make workflow tracing natural |
+| Boilerplate | Higher | Moderate | Moderate | Higher upfront, cleaner for complex flows |
+| Learning curve | Lowest if you know raw APIs | Moderate | Moderate | Highest, but powerful for workflows |
+| When to choose it | You want full control over every model/tool call | You want safer schemas and typed results | You want a broad agent/tooling ecosystem | You need deterministic multi-step agent flows |
+
+### How to Compare Them Locally
+
+Run each implementation with the same prompt and compare the code and output:
+
+```bash
+uv run python agent.py
+uv run python agent_pydantic.py
+uv run python agent_langchain.py
+uv run python agent_langgraph.py
+```
+
+Use the same demo question each time:
+
+```text
+How do I set up authentication?
+```
+
+Then compare:
+
+- How much code is needed to define tools
+- How easy the control flow is to understand
+- How strictly outputs are typed or validated
+- How easy it is to add tracing
+- How easy it is to enforce a specific workflow
+- How framework-specific the implementation feels
+- How easy it would be to extend the agent with more tools
+
 ## Knowledge Graph Memory Layer
 
 The agents use SurrealDB as a shared memory and retrieval layer. This gives them access to:
