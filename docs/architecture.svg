@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <style>
+    text { font-family: Arial, sans-serif; }
+    .title { font-size: 28px; font-weight: bold; }
+    .label { font-size: 18px; }
+    .small { font-size: 14px; }
+    .box { fill: #f8fafc; stroke: #334155; stroke-width: 2; rx: 12; }
+  </style>
+  <text x="600" y="50" text-anchor="middle" class="title">Agent Memory Architecture</text>
+  <rect x="100" y="100" width="1000" height="180" class="box"/>
+  <text x="600" y="145" text-anchor="middle" class="label">AI Agent / LLM</text>
+  <text x="600" y="190" text-anchor="middle" class="small">Tool Calling • Reasoning • Memory Retrieval</text>
+  <text x="600" y="220" text-anchor="middle" class="small">OpenAI SDK • LangChain • LangGraph • PydanticAI</text>
+  <line x1="600" y1="280" x2="600" y2="340" stroke="#334155" stroke-width="3"/>
+  <polygon points="600,350 592,334 608,334" fill="#334155"/>
+  <rect x="100" y="360" width="1000" height="220" class="box"/>
+  <text x="600" y="405" text-anchor="middle" class="label">SurrealDB Memory Layer</text>
+  <text x="600" y="445" text-anchor="middle" class="small">Knowledge Graph • Vector Search • Temporal Facts • Decision Tracing</text>
+  <text x="600" y="485" text-anchor="middle" class="small">Articles ↔ Products ↔ Tickets ↔ Solutions ↔ Customers</text>
+  <text x="600" y="525" text-anchor="middle" class="small">Semantic Retrieval + Graph Traversal</text>
+</svg>
