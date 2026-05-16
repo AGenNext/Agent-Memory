@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Lint (if Ruff is configured)
+        run: |
+          if uv run python -c "import importlib.util; import sys; sys.exit(0 if importlib.util.find_spec('ruff') else 1)"; then
+            uv run ruff check .
+          else
+            echo 'Ruff not installed; skipping lint.'
+          fi
+
+      - name: Run tests (if tests exist)
+        run: |
+          if [ -d tests ]; then
+            uv run pytest
+          else
+            echo 'No tests directory found; skipping tests.'
+          fi
