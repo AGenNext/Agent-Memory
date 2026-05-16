@@ -1,52 +1,61 @@
-# Agent Memory with Knowledge Graphs
+# Sample AI Agents with Knowledge Graph Memory
 
 ![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
 ![SurrealDB](https://img.shields.io/badge/SurrealDB-v2.0%2B-ff00a0)
 ![OpenAI](https://img.shields.io/badge/OpenAI-API-412991)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-A demo project for building production-style AI agent memory with **knowledge graphs**, **vector search**, and **decision tracing** in **SurrealDB**.
+A hands-on collection of **sample AI agents** that demonstrate tool calling, framework-specific agent patterns, retrieval workflows, and knowledge-graph-backed memory using **SurrealDB**.
 
-This repository shows how an agent can store durable context, retrieve relevant knowledge, follow relationships between entities, and audit the reasoning path that led to an answer.
+This repository is not only about memory. It is a practical playground for comparing how different agent frameworks implement similar capabilities, including OpenAI SDK, PydanticAI, LangChain, and LangGraph.
 
-## Highlights
+## What You’ll Find Here
 
-- Knowledge graph memory for connected entities and relationships
-- Vector search for semantic retrieval
-- Hybrid retrieval that combines graph traversal and embeddings
-- Decision tracing for observability and auditability
-- Temporal facts for querying historical context
-- Multiple agent implementations using OpenAI SDK, PydanticAI, LangChain, and LangGraph
+- Sample agents built with multiple frameworks
+- Tool-calling examples for retrieval and reasoning
+- Knowledge graph memory patterns with SurrealDB
+- Vector search and hybrid retrieval examples
+- Decision tracing for agent observability
+- Temporal facts for historical context
+- Docker-based local development setup
 
-## What This Project Demonstrates
+## Sample Agents
 
-Agent memory is a persistent, queryable layer that helps AI agents move beyond single-session context windows. With the patterns in this repo, an agent can:
+| File | Framework | What it demonstrates |
+| --- | --- | --- |
+| `agent.py` | OpenAI SDK | Raw tool-calling loop and direct control over agent execution |
+| `agent_pydantic.py` | PydanticAI | Typed agent patterns and structured tool usage |
+| `agent_langchain.py` | LangChain | LangChain tools and agent orchestration |
+| `agent_langgraph.py` | LangGraph | Graph-based workflow with an enforced review step |
 
-- **Accumulate context** across conversations and support requests
-- **Maintain entity awareness** with graph relationships between articles, products, tickets, customers, and solutions
-- **Retrieve semantically similar knowledge** with vector search
-- **Reason across relationships** with graph traversal
-- **Trace decisions over time** for debugging and auditability
-- **Coordinate shared memory** across multiple agents or workflows
+Each sample agent works with the same underlying memory and retrieval concepts, making it easier to compare framework ergonomics and tradeoffs.
+
+## Knowledge Graph Memory Layer
+
+The agents use SurrealDB as a shared memory and retrieval layer. This gives them access to:
+
+- **Entities and relationships** across articles, products, tickets, customers, and solutions
+- **Vector search** for semantic similarity
+- **Graph traversal** for relationship-aware retrieval
+- **Decision traces** for debugging and auditability
+- **Temporal facts** for asking what was true at a given time
 
 ## Architecture
 
 ```text
 ┌─────────────────────────────────────────────────────────┐
-│                    AI Agent / LLM                      │
+│                 Sample Agent Implementations            │
 │                                                         │
-│  Tool-calling + reasoning loop                          │
-│  • review_past_decisions                                │
-│  • search_articles       vector search                  │
-│  • find_related          graph traversal                │
-│  • find_solutions        hybrid retrieval               │
+│  OpenAI SDK • PydanticAI • LangChain • LangGraph         │
+│                                                         │
+│  Tool calling • Reasoning loops • Review workflows       │
 └───────────────────────────┬─────────────────────────────┘
                             │
                             ▼
 ┌─────────────────────────────────────────────────────────┐
-│                       SurrealDB                         │
+│                 Shared Retrieval + Memory Layer         │
 │                                                         │
-│  Knowledge graph + vector indexes                       │
+│  SurrealDB knowledge graph + vector indexes             │
 │                                                         │
 │  [Article] ──references──▶ [Product]                    │
 │      │                         ▲                        │
@@ -56,9 +65,10 @@ Agent memory is a persistent, queryable layer that helps AI agents move beyond s
 │      │                                                  │
 │      └──authored──▶ [Customer]                          │
 │                                                         │
-│  + Vector index for semantic search                     │
-│  + Decision traces for auditing                         │
-│  + Temporal facts for historical context                │
+│  + Vector search                                        │
+│  + Graph traversal                                      │
+│  + Decision tracing                                     │
+│  + Temporal context                                     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -92,7 +102,13 @@ uv sync
 
 ### 3. Configure your environment
 
-Create a `.env` file and add your OpenAI API key:
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Then add your API key:
 
 ```bash
 OPENAI_API_KEY=your_api_key_here
@@ -119,10 +135,18 @@ surreal start \
 uv run python load.py
 ```
 
-### 6. Run an agent
+### 6. Run a sample agent
 
 ```bash
 uv run python agent.py
+```
+
+You can also try the framework-specific variants:
+
+```bash
+uv run python agent_pydantic.py
+uv run python agent_langchain.py
+uv run python agent_langgraph.py
 ```
 
 Try asking:
@@ -222,15 +246,17 @@ Agent-Memory/
 ├── agent_langchain.py       # LangChain implementation
 ├── agent_langgraph.py       # LangGraph implementation with review flow
 ├── load.py                  # Loads schema, data, and embeddings
+├── docs/                    # Diagrams and documentation assets
+├── tests/                   # Smoke tests and future test coverage
 ├── pyproject.toml           # Python project and dependencies
 └── README.md
 ```
 
-## Key Features
+## Retrieval and Memory Features
 
 ### Hybrid retrieval
 
-Combine semantic search and graph traversal in one memory layer.
+Combine semantic search and graph traversal in one shared layer.
 
 ```sql
 -- Vector search for similar articles
@@ -272,15 +298,6 @@ WHERE created < $point_in_time
 AND (valid_until IS NONE OR valid_until > $point_in_time);
 ```
 
-### Multiple agent implementations
-
-| File | Framework | Description |
-| --- | --- | --- |
-| `agent.py` | OpenAI SDK | Raw tool-calling loop |
-| `agent_pydantic.py` | PydanticAI | Pydantic-based agent implementation |
-| `agent_langchain.py` | LangChain | LangChain tools implementation |
-| `agent_langgraph.py` | LangGraph | Agent workflow with an enforced review step |
-
 ## Demo Questions
 
 After loading the sample data, try:
@@ -291,19 +308,20 @@ After loading the sample data, try:
 - `Have we seen this issue before?`
 - `What past decisions led to this recommendation?`
 
-## When to Use This Pattern
+## When to Use These Examples
 
-This architecture is useful when your agent needs to remember more than isolated chat history, especially for:
+Use this repository when you want to:
 
-- Customer support copilots
-- Developer assistants
-- Internal knowledge agents
-- Product operations agents
-- Multi-agent systems that share context
-- Auditable AI workflows
+- Compare agent framework implementations side by side
+- Learn practical tool-calling patterns
+- Build agents that retrieve from structured and semantic memory
+- Prototype customer support, developer assistant, or internal knowledge agents
+- Explore graph-plus-vector retrieval with SurrealDB
+- Add observability and decision tracing to agent workflows
 
 ## Roadmap Ideas
 
+- Add more sample agents for additional frameworks
 - Add more realistic support-ticket and knowledge-base datasets
 - Add automated tests for retrieval flows
 - Add benchmark scripts for vector-only vs graph-plus-vector retrieval
