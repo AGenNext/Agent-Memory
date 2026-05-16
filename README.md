@@ -1,8 +1,22 @@
 # Agent Memory with Knowledge Graphs
 
+![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
+![SurrealDB](https://img.shields.io/badge/SurrealDB-v2.0%2B-ff00a0)
+![OpenAI](https://img.shields.io/badge/OpenAI-API-412991)
+![License](https://img.shields.io/badge/License-MIT-green)
+
 A demo project for building production-style AI agent memory with **knowledge graphs**, **vector search**, and **decision tracing** in **SurrealDB**.
 
 This repository shows how an agent can store durable context, retrieve relevant knowledge, follow relationships between entities, and audit the reasoning path that led to an answer.
+
+## Highlights
+
+- Knowledge graph memory for connected entities and relationships
+- Vector search for semantic retrieval
+- Hybrid retrieval that combines graph traversal and embeddings
+- Decision tracing for observability and auditability
+- Temporal facts for querying historical context
+- Multiple agent implementations using OpenAI SDK, PydanticAI, LangChain, and LangGraph
 
 ## What This Project Demonstrates
 
@@ -287,6 +301,22 @@ This architecture is useful when your agent needs to remember more than isolated
 - Product operations agents
 - Multi-agent systems that share context
 - Auditable AI workflows
+
+## Roadmap Ideas
+
+- Add more realistic support-ticket and knowledge-base datasets
+- Add automated tests for retrieval flows
+- Add benchmark scripts for vector-only vs graph-plus-vector retrieval
+- Add deployment examples for production SurrealDB setups
+- Add a hosted demo or walkthrough video
+
+## Contributing
+
+Contributions are welcome. Please see [CONTRIBUTING.md](CONTRIBUTING.md) for setup steps, development workflow, and pull request guidelines.
+
+## License
+
+This project is released under the [MIT License](LICENSE).
 
 ## See Also
 
