@@ -1,132 +1,222 @@
-# Building Agent Memory with Knowledge Graphs
+# Agent Memory with Knowledge Graphs
 
-Demo code for building production agent memory using knowledge graphs and vectors in SurrealDB.
+A demo project for building production-style AI agent memory with **knowledge graphs**, **vector search**, and **decision tracing** in **SurrealDB**.
 
-## What is Agent Memory?
+This repository shows how an agent can store durable context, retrieve relevant knowledge, follow relationships between entities, and audit the reasoning path that led to an answer.
 
-Agent memory is a persistent, queryable memory layer that enables AI agents to:
+## What This Project Demonstrates
 
-- **Accumulate context** across conversations
-- **Maintain entity awareness** through knowledge graphs  
-- **Learn from past decisions** via temporal tracing
-- **Coordinate with other agents** through shared memory
+Agent memory is a persistent, queryable layer that helps AI agents move beyond single-session context windows. With the patterns in this repo, an agent can:
+
+- **Accumulate context** across conversations and support requests
+- **Maintain entity awareness** with graph relationships between articles, products, tickets, customers, and solutions
+- **Retrieve semantically similar knowledge** with vector search
+- **Reason across relationships** with graph traversal
+- **Trace decisions over time** for debugging and auditability
+- **Coordinate shared memory** across multiple agents or workflows
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
-│                    AI Agent (LLM)                      │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │     Tool Calling + Reasoning Loop              │  │
-│  │  • review_past_decisions               │  │
-│  │  • search_articles (vector search)       │  │
-│  │  • find_related (graph traversal)      │  │
-│  │  • find_solutions (hybrid retrieval)    │  │
-│  └─────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
+│                    AI Agent / LLM                      │
+│                                                         │
+│  Tool-calling + reasoning loop                          │
+│  • review_past_decisions                                │
+│  • search_articles       vector search                  │
+│  • find_related          graph traversal                │
+│  • find_solutions        hybrid retrieval               │
+└───────────────────────────┬─────────────────────────────┘
+                            │
+                            ▼
 ┌─────────────────────────────────────────────────────────┐
-│                   SurrealDB                            │
-│  ┌─────────────────────────────────────────────────┐  │
-│  │     Knowledge Graph + Vectors                  │  │
-│  │                                              │  │
-│  │  [Article] ──references──▶ [Product]        │  │
-│  │     │                       ▲               │  │
-│  │     │                       │               │  │
-│  │    │▼              about──┘                │  │
-│  │    ▼                    │                    │  │
-│  │  [Ticket] ──resolved_by▶ [Solution]        │  │
-│  │     │                                         │  │
-│  │     └──authored──▶ [Customer]                │  │
-│  │                                              │  │
-│  │  + Vector Index for semantic search            │  │
-│  │  + Decision traces for auditing                │  │
-│  └─────────────────────────────────────────────────┘  │
+│                       SurrealDB                         │
+│                                                         │
+│  Knowledge graph + vector indexes                       │
+│                                                         │
+│  [Article] ──references──▶ [Product]                    │
+│      │                         ▲                        │
+│      │                         │                        │
+│      ▼                         │ about                  │
+│  [Ticket] ──resolved_by──▶ [Solution]                   │
+│      │                                                  │
+│      └──authored──▶ [Customer]                          │
+│                                                         │
+│  + Vector index for semantic search                     │
+│  + Decision traces for auditing                         │
+│  + Temporal facts for historical context                │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ## Prerequisites
 
-- **SurrealDB** (nightly or v2.0+) - Start with: `surreal start --log trace --user root --pass root --allow-funcs --allow-net --allow-experimental memory`
-- **uv** - Python package manager (install via `pip install uv`)
-- **OpenAI API key** - For embeddings and LLM
+- **SurrealDB** nightly or v2.0+
+- **uv** Python package manager
+- **OpenAI API key** for embeddings and LLM calls
+- **Docker Compose** optional, for local SurrealDB and Surrealist UI
+
+Install `uv` if needed:
+
+```bash
+pip install uv
+```
+
+## Quickstart
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/AGenNext/Agent-Memory.git
+cd Agent-Memory
+```
+
+### 2. Install dependencies
+
+```bash
+uv sync
+```
+
+### 3. Configure your environment
+
+Create a `.env` file and add your OpenAI API key:
+
+```bash
+OPENAI_API_KEY=your_api_key_here
+```
+
+### 4. Start SurrealDB
+
+For a fast local demo with in-memory storage:
+
+```bash
+surreal start \
+  --log trace \
+  --user root \
+  --pass root \
+  --allow-funcs \
+  --allow-net \
+  --allow-experimental \
+  memory
+```
+
+### 5. Load schema, sample data, and embeddings
+
+```bash
+uv run python load.py
+```
+
+### 6. Run an agent
+
+```bash
+uv run python agent.py
+```
+
+Try asking:
+
+```text
+How do I set up authentication?
+```
 
 ## Storage Modes
 
-### 1. In-Memory (fastest, no persistence)
+SurrealDB can run in several modes depending on whether you want a quick demo, local persistence, or a distributed deployment.
+
+### In-memory
+
+Fastest option. Data is cleared when the database stops.
+
 ```bash
 surreal start --user root --pass root memory
 ```
 
-### 2. File-Backed (RocksDB - default)
+### RocksDB file-backed storage
+
+Good default for local persistent storage.
+
 ```bash
 surreal start --user root --pass root rocksdb:///data/memory.db
 ```
 
-### 3. File-Backed (SurrealKV - modern)
+### SurrealKV file-backed storage
+
+Modern embedded storage option.
+
 ```bash
 surreal start --user root --pass root surrealkv:///data/memory.db
 ```
 
-### 4. Distributed (TiKV cluster)
+### TiKV distributed storage
+
+Use this when testing distributed deployments.
+
 ```bash
 # Start TiKV first
 tiup playground --tag surrealdb --mode tikv-slim --pd 1 --kv 1
 
-# Then SurrealDB with TiKV
+# Then start SurrealDB with TiKV
 surreal start --user root --pass root tikv://127.0.0.1:2379
 ```
 
-### Docker Compose Modes
+## Docker Compose
+
+Start SurrealDB only:
 
 ```bash
-# Single node (default)
 docker-compose up -d surrealdb
+```
 
-# With Surrealist UI
+Start SurrealDB with the Surrealist web UI:
+
+```bash
 docker-compose up -d surrealdb surrealist
+```
 
-# Distributed (TiKV)
+Start the distributed TiKV setup:
+
+```bash
 docker-compose -f docker-compose.yml up -d pd tikv surrealdb-tikv
 ```
 
 ## Surrealist Web UI
 
-After running `docker-compose up`, access the Surrealist UI at:
+After starting Surrealist, open:
 
-- **URL:** http://localhost:3000
-- **Database:** `memory/agent` (namespace/database)
+- **URL:** `http://localhost:3000`
+- **Namespace / database:** `memory / agent`
 - **User:** `root`
-- **Pass:** `root`
+- **Password:** `root`
 
-### Surrealist Features:
-- **Query View** - Run SurrealQL queries with tabs
-- **Graph View** - Visualize entity relationships
-- **Table Explorer** - Browse records visually
-- **Schema Designer** - Create tables/fields
-- **Live Queries** - Real-time updates
-- **Authentication** - Manage users/scopes
+Useful views in Surrealist:
+
+- **Query View** for running SurrealQL queries
+- **Graph View** for visualizing entity relationships
+- **Table Explorer** for browsing records
+- **Schema Designer** for inspecting tables and fields
+- **Live Queries** for real-time updates
+- **Authentication** for managing users and scopes
 
 ## Project Structure
 
-```
-agent-memory/
+```text
+Agent-Memory/
 ├── surql/
-│   ├── 01-schema.surql      # Tables, fields, vector indexes
-│   ├── 02-ingest.surql     # Sample data and graph edges
-│   └── 03-query.surql      # Retrieval patterns
-├── agent.py                # Python agent with tool-calling
-├── load.py                # Load schema + data + embeddings
-├── pyproject.toml         # Dependencies
+│   ├── 01-schema.surql      # Tables, fields, and vector indexes
+│   ├── 02-ingest.surql      # Sample data and graph edges
+│   └── 03-query.surql       # Retrieval examples and query patterns
+├── agent.py                 # OpenAI SDK agent with raw tool calling
+├── agent_pydantic.py        # PydanticAI implementation
+├── agent_langchain.py       # LangChain implementation
+├── agent_langgraph.py       # LangGraph implementation with review flow
+├── load.py                  # Loads schema, data, and embeddings
+├── pyproject.toml           # Python project and dependencies
 └── README.md
 ```
 
 ## Key Features
 
-### 1. Hybrid Retrieval
+### Hybrid retrieval
 
-Combine vector search + graph traversal in one query:
+Combine semantic search and graph traversal in one memory layer.
 
 ```sql
 -- Vector search for similar articles
@@ -134,61 +224,72 @@ SELECT id, title, vector::distance::knn() AS distance
 FROM article
 WHERE embedding <|5,100|> $query;
 
--- Graph traversal from product to solutions
-SELECT 
-    name,
-    <-about<-ticket->resolved_by->solution.{title, steps}
+-- Graph traversal from product to related solutions
+SELECT
+  name,
+  <-about<-ticket->resolved_by->solution.{title, steps}
 FROM product:auth;
 ```
 
-### 2. Decision Tracing
+### Decision tracing
 
-Every agent decision is traced for auditing:
+Trace every important agent step for review and debugging.
 
-```
+```text
 session:abc123
-├── decision_step:001 "receive_query"        
-├── led_to                                 
+├── decision_step:001 "receive_query"
+├── led_to
 ├── decision_step:002 "tool_call: search_articles"
-├── led_to                                 
-├── decision_step:003 "tool_call: find_related"  
-├── led_to                                 
+├── led_to
+├── decision_step:003 "tool_call: find_related"
+├── led_to
 ├── decision_step:004 "answer"
 └── produced
     └── response_trace:001
 ```
 
-### 3. Temporal Facts
+### Temporal facts
 
-Track what was true at any point:
+Ask what was true at a specific point in time.
 
 ```sql
--- Historical solutions (what was valid at time X)
 SELECT * FROM solution
 WHERE created < $point_in_time
 AND (valid_until IS NONE OR valid_until > $point_in_time);
 ```
 
-## Available Agent Implementations
+### Multiple agent implementations
 
 | File | Framework | Description |
-|------|----------|-----------|
+| --- | --- | --- |
 | `agent.py` | OpenAI SDK | Raw tool-calling loop |
-| `agent_pydantic.py` | PydanticAI | Pydantic-based agents |
-| `agent_langchain.py` | LangChain | LangChain tools |
-| `agent_langgraph.py` | LangGraph | Enforced review flow |
+| `agent_pydantic.py` | PydanticAI | Pydantic-based agent implementation |
+| `agent_langchain.py` | LangChain | LangChain tools implementation |
+| `agent_langgraph.py` | LangGraph | Agent workflow with an enforced review step |
 
-## Demo Questions to Try
+## Demo Questions
 
-After loading data:
+After loading the sample data, try:
 
-- "How do I set up authentication?"
-- "What products support SSO?"
-- "Show me solutions for the auth product"
-- "Have we seen this issue before?"
+- `How do I set up authentication?`
+- `What products support SSO?`
+- `Show me solutions for the auth product.`
+- `Have we seen this issue before?`
+- `What past decisions led to this recommendation?`
+
+## When to Use This Pattern
+
+This architecture is useful when your agent needs to remember more than isolated chat history, especially for:
+
+- Customer support copilots
+- Developer assistants
+- Internal knowledge agents
+- Product operations agents
+- Multi-agent systems that share context
+- Auditable AI workflows
 
 ## See Also
 
-- [SurrealDB Knowledge Graph Tutorial](https://surrealdb.com/docs/explore/tutorials/tutorials/how-to-build-a-knowledge-graph-for-ai)
+- [SurrealDB knowledge graph tutorial](https://surrealdb.com/docs/explore/tutorials/tutorials/how-to-build-a-knowledge-graph-for-ai)
 - [Spectron - Agent Memory](https://surrealdb.com/platform/spectron)
 - [SurrealDB University](https://surrealdb.com/blog/category/tutorials)
