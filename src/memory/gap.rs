@@ -23,11 +23,8 @@ pub enum RecallOutcome {
 
     /// Found nothing after exhausting all tiers.
     /// The agent should acknowledge the gap and ask for a time anchor.
+    /// Use service_gap::replay_by_window() or replay_session() to load an episode.
     Gap(GapProbeRecord),
-
-    /// Human provided a time anchor. A complete past session is now
-    /// loaded into active memory. The agent can see the full episode.
-    EpisodeReplayed(ReplayedEpisode),
 }
 
 #[derive(Debug, Clone)]
