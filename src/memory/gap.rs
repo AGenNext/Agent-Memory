@@ -67,18 +67,22 @@ pub struct ReplayedEpisode {
 // ---------------------------------------------------------------------------
 
 pub struct EscalatingRecall<'a> {
-    store:             &'a Store,
-    q:                 &'a RecallQuery,
-    human_insistence:  Option<String>,
+    store:                &'a Store,
+    q:                    &'a RecallQuery,
+    human_insistence:     Option<String>,
+    threshold:            f64,
+    escalating_threshold: f64,
 }
 
 impl<'a> EscalatingRecall<'a> {
     pub fn new(
-        store:            &'a Store,
-        q:                &'a RecallQuery,
-        human_insistence: Option<String>,
+        store:                &'a Store,
+        q:                    &'a RecallQuery,
+        human_insistence:     Option<String>,
+        threshold:            f64,
+        escalating_threshold: f64,
     ) -> Self {
-        Self { store, q, human_insistence }
+        Self { store, q, human_insistence, threshold, escalating_threshold }
     }
 
     pub async fn run(self) -> Result<RecallOutcome> {
@@ -89,7 +93,7 @@ impl<'a> EscalatingRecall<'a> {
         // ----------------------------------------------------------------
         debug!("escalating recall tier 1: direct lookup");
         let direct = self.store.direct_lookup(self.q).await?;
-        let direct = apply_decay_filter(direct, now, RETRIEVAL_THRESHOLD);
+        let direct = apply_decay_filter(direct, now, self.threshold);
         if !direct.is_empty() {
             let ids = id_strings(&direct);
             let trace = self.store.write_trace(self.q, &ids, RetrievalTier::DirectLookup).await.ok();
@@ -125,7 +129,7 @@ impl<'a> EscalatingRecall<'a> {
 
         if !merged.is_empty() {
             let mut memories = self.store.fetch_by_ids(&merged).await?;
-            memories = apply_decay_filter(memories, now, RETRIEVAL_THRESHOLD);
+            memories = apply_decay_filter(memories, now, self.threshold);
             if !memories.is_empty() {
                 let ids = id_strings(&memories);
                 let trace = self.store.write_trace(self.q, &ids, RetrievalTier::Hybrid).await.ok();
@@ -164,7 +168,7 @@ impl<'a> EscalatingRecall<'a> {
         if !merged_s.is_empty() {
             let memories = self.store.fetch_by_ids(&merged_s).await?;
             // Use escalating threshold — we're digging deeper
-            let memories = apply_decay_filter(memories, now, ESCALATING_THRESHOLD);
+            let memories = apply_decay_filter(memories, now, self.escalating_threshold);
             if !memories.is_empty() {
                 let ids = id_strings(&memories);
                 let trace = self.store.write_trace(self.q, &ids, RetrievalTier::FullContext).await.ok();
@@ -193,7 +197,7 @@ impl<'a> EscalatingRecall<'a> {
             let relevant: Vec<Memory> = memories.into_iter()
                 .filter(|m| {
                     let ec = effective_confidence(m, now);
-                    ec >= ESCALATING_THRESHOLD &&
+                    ec >= self.escalating_threshold &&
                     content_matches(&m.content, &self.q.query_text)
                 })
                 .take(self.q.top_k)
@@ -239,7 +243,7 @@ impl<'a> EscalatingRecall<'a> {
         let merged_w = crate::memory::store::reciprocal_rank_fusion(&bwp, &vwp, 60, self.q.top_k);
         if !merged_w.is_empty() {
             let memories = self.store.fetch_by_ids(&merged_w).await?;
-            let memories = apply_decay_filter(memories, now, ESCALATING_THRESHOLD);
+            let memories = apply_decay_filter(memories, now, self.escalating_threshold);
             if !memories.is_empty() {
                 let ids = id_strings(&memories);
                 let trace = self.store.write_trace(self.q, &ids, RetrievalTier::FullContext).await.ok();
