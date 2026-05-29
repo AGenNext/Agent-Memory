@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use tracing::info;
 
 use crate::memory::{
+    conflict::{ConflictInput, ConflictType},
     gap::RecallOutcome,
     service::MemoryService,
     types::*,
@@ -375,6 +376,94 @@ impl AgentMemoryMcp {
         }
     }
 
+    /// Resolve a conflict between what the agent has and what the human says.
+    /// conflict_type: "misinterpretation" | "agent_stands_firm" | "factual_contradiction"
+    ///
+    /// misinterpretation   → human says agent got the interpretation wrong
+    ///                       agent accepts, versions the interpretation
+    /// agent_stands_firm   → human says agent said X, agent's log says Y
+    ///                       agent shows its exact log, does not update
+    /// factual_contradiction → human claims a number/fact differs from chat log
+    ///                       agent shows exact line, halts that reasoning thread
+    #[tool(description = "Resolve conflict. Types: misinterpretation | agent_stands_firm | factual_contradiction. Returns agent_response and halt_reasoning flag.")]
+    async fn conflict_resolve(
+        &self,
+        #[tool(param)] agent_id: String,
+        #[tool(param)] session_id: Option<String>,
+        #[tool(param)] conflict_type: String,
+        #[tool(param)] human_statement: String,
+        #[tool(param)] prior_memory_id: Option<String>,
+        #[tool(param)] correct_interpretation: Option<String>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let ct = match conflict_type.as_str() {
+            "misinterpretation"    => ConflictType::Misinterpretation,
+            "agent_stands_firm"    => ConflictType::AgentStandsFirm,
+            "factual_contradiction" => ConflictType::FactualContradiction,
+            other => return Err(rmcp::Error::invalid_params(
+                format!("unknown conflict_type: {}", other), None
+            )),
+        };
+
+        let input = ConflictInput {
+            agent_id,
+            session_id,
+            conflict_type: ct,
+            human_statement,
+            prior_memory_id,
+            correct_interpretation,
+        };
+
+        match self.service.resolve_conflict(input).await {
+            Ok(trace) => Ok(CallToolResult::success(vec![Content::text(
+                serde_json::to_string(&json!({
+                    "agent_response":        trace.agent_response,
+                    "halt_reasoning":        trace.halt_reasoning,
+                    "resolution":            format!("{:?}", trace.resolution),
+                    "interpretation_version": trace.interpretation_version,
+                    "calibration_reasoning": trace.calibration_reasoning,
+                    "prior_verbatim":        trace.prior_verbatim,
+                    "prior_known_time":      trace.prior_known_time,
+                })).unwrap_or_default()
+            )])),
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
+    /// Show the decision log — recent conflict traces for an agent.
+    /// Use this to show the human what decisions were made and why.
+    #[tool(description = "Show decision log. Returns recent conflict resolutions with reasoning, prior records, and what the agent said.")]
+    async fn decision_log(
+        &self,
+        #[tool(param)] agent_id: String,
+        #[tool(param)] limit: Option<i64>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        match self.service.conflict_history(&agent_id, limit.unwrap_or(20) as usize).await {
+            Ok(rows) => {
+                let entries: Vec<Value> = rows.iter().map(|r| json!({
+                    "id":                   r.id.as_ref().map(|id| id.to_string()),
+                    "conflict_type":        r.conflict_type,
+                    "prior_content":        r.prior_content,
+                    "prior_verbatim":       r.prior_verbatim,
+                    "prior_known_time":     r.prior_known_time,
+                    "human_statement":      r.human_statement,
+                    "resolution":           r.resolution,
+                    "calibration_reasoning": r.calibration_reasoning,
+                    "agent_response":       r.agent_response,
+                    "halt_reasoning":       r.halt_reasoning,
+                    "created_at":           r.created_at,
+                })).collect();
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string(&json!({
+                        "count":   entries.len(),
+                        "entries": entries,
+                    })).unwrap_or_default()
+                )]))
+            }
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
 }
 
 #[tool_handler]
@@ -391,7 +480,7 @@ impl ServerHandler for AgentMemoryMcp {
             },
             instructions: Some(
                 "Agent-Memory: provenance-first, tri-temporal memory layer. \
-                 Eight tools: remember, recall, recall_or_gap, update, forget, reflect, inspect, replay_episode. \
+                 Ten tools: remember, recall, recall_or_gap, update, forget, reflect, inspect, replay_episode, conflict_resolve, decision_log. \
                  Use recall_or_gap when human insists on something not found. Use replay_episode with a time anchor to load full past session."
                     .to_string(),
             ),
