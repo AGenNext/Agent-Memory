@@ -311,19 +311,6 @@ impl AgentMemoryMcp {
                     }).to_string()
                 )]))
             }
-            Ok(RecallOutcome::EpisodeReplayed(ep)) => {
-                Ok(CallToolResult::success(vec![Content::text(
-                    json!({
-                        "outcome": "episode_replayed",
-                        "session_id": ep.session_id,
-                        "started_at": ep.started_at,
-                        "ended_at": ep.ended_at,
-                        "memory_count": ep.memories.len(),
-                        "token_count": ep.token_count,
-                        "thread_preview": &ep.thread_text[..ep.thread_text.len().min(500)],
-                    }).to_string()
-                )]))
-            }
             Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
         }
     }
