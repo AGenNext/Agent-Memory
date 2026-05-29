@@ -1,0 +1,27 @@
+{
+  "query_set": "identity_recall",
+  "description": "20 queries testing recall of identity-category memories. Tests whether frameworks surface stable personal facts correctly after decay time has passed.",
+  "queries": [
+    {"id": "IR-001", "agent_id": "test-agent", "text": "What format does the user prefer for reports?",       "gold": "Technically precise prose with depth", "fixture_ref": "PA-01"},
+    {"id": "IR-002", "agent_id": "test-agent", "text": "What is the user's role?",                            "gold": "see fixture", "fixture_ref": "ENG-01"},
+    {"id": "IR-003", "agent_id": "test-agent", "text": "What programming language does the user prefer?",     "gold": "see fixture", "fixture_ref": "ENG-01"},
+    {"id": "IR-004", "agent_id": "test-agent", "text": "How does the user like to receive feedback?",         "gold": "see fixture", "fixture_ref": "PA-02"},
+    {"id": "IR-005", "agent_id": "test-agent", "text": "What timezone is the user in?",                       "gold": "see fixture", "fixture_ref": "PA-02"},
+    {"id": "IR-006", "agent_id": "test-agent", "text": "Does the user prefer async or sync communication?",   "gold": "see fixture", "fixture_ref": "PA-02"},
+    {"id": "IR-007", "agent_id": "test-agent", "text": "What is the user's primary tool for project tracking?","gold": "see fixture", "fixture_ref": "PM-01"},
+    {"id": "IR-008", "agent_id": "test-agent", "text": "How many people are on the user's team?",             "gold": "see fixture", "fixture_ref": "PM-01"},
+    {"id": "IR-009", "agent_id": "test-agent", "text": "What is the user's budget approval limit?",           "gold": "see fixture", "fixture_ref": "PM-01"},
+    {"id": "IR-010", "agent_id": "test-agent", "text": "What does the user call their sprint retrospective?", "gold": "see fixture", "fixture_ref": "ENG-01"},
+    {"id": "IR-011", "agent_id": "test-agent", "text": "Does the user use tabs or spaces?",                   "gold": "see fixture", "fixture_ref": "ENG-01"},
+    {"id": "IR-012", "agent_id": "test-agent", "text": "What is the user's preferred IDE?",                   "gold": "see fixture", "fixture_ref": "ENG-01"},
+    {"id": "IR-013", "agent_id": "test-agent", "text": "How does the user handle breaking changes?",          "gold": "see fixture", "fixture_ref": "ENG-02"},
+    {"id": "IR-014", "agent_id": "test-agent", "text": "What is the user's escalation path?",                 "gold": "see fixture", "fixture_ref": "CS-01"},
+    {"id": "IR-015", "agent_id": "test-agent", "text": "What tone does the user use with customers?",         "gold": "see fixture", "fixture_ref": "CS-01"},
+    {"id": "IR-016", "agent_id": "test-agent", "text": "Does the user prefer to be called by first name?",    "gold": "see fixture", "fixture_ref": "PA-01"},
+    {"id": "IR-017", "agent_id": "test-agent", "text": "What is the user's meeting cadence?",                 "gold": "see fixture", "fixture_ref": "PM-02"},
+    {"id": "IR-018", "agent_id": "test-agent", "text": "How does the user prioritise their backlog?",         "gold": "see fixture", "fixture_ref": "PM-02"},
+    {"id": "IR-019", "agent_id": "test-agent", "text": "What is the user's research methodology?",            "gold": "see fixture", "fixture_ref": "RS-01"},
+    {"id": "IR-020", "agent_id": "test-agent", "text": "How does the user like to receive progress updates?", "gold": "see fixture", "fixture_ref": "PA-03"}
+  ],
+  "notes": "Fixtures PA-02, PA-03, ENG-01, ENG-02, PM-01, PM-02, CS-01, RS-01 to be completed before first benchmark run."
+}
