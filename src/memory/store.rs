@@ -12,6 +12,7 @@ use crate::memory::types::*;
 
 const MIGRATION_001: &str = include_str!("../../migrations/001_memory.surql");
 const MIGRATION_002: &str = include_str!("../../migrations/002_human_memory.surql");
+const MIGRATION_003: &str = include_str!("../../migrations/003_conflict.surql");
 const NS: &str = "agnxxt";
 const DB: &str = "agent_memory";
 
@@ -56,6 +57,7 @@ impl Store {
         info!("applying schema migrations");
         self.db.query(MIGRATION_001).await.context("migration 001")?;
         self.db.query(MIGRATION_002).await.context("migration 002")?;
+        self.db.query(MIGRATION_003).await.context("migration 003")?;
         info!("schema ready");
         Ok(())
     }
@@ -123,7 +125,23 @@ impl Store {
             .await?;
 
         let memory: Option<Memory> = res.take(0)?;
-        memory.context("create_memory returned nothing")
+        let memory = memory.context("create_memory returned nothing")?;
+
+        // Maintain session_index for episodic memories
+        // so we can find sessions by time window for episode replay
+        if matches!(memory.category, MemoryCategory::Episodic)
+            && memory.session_id.is_some()
+        {
+            let sid = memory.session_id.as_deref().unwrap_or("");
+            let _ = self.update_session_index(
+                &memory.agent_id,
+                sid,
+                memory.known_time.unwrap_or_else(chrono::Utc::now),
+                memory.keywords.clone(),
+            ).await;
+        }
+
+        Ok(memory)
     }
 
     /// Spectron supersede-not-overwrite.
