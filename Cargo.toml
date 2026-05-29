@@ -2,8 +2,19 @@
 name        = "agent-memory"
 version     = "0.1.0"
 edition     = "2021"
-description = "Agent-Memory: open Spectron-model memory layer, single Rust binary, embedded SurrealDB, MCP server built in"
+description = "Open memory layer for AI agents — embedded SurrealDB, Ebbinghaus decay, episodic replay, conflict resolution"
 license     = "Apache-2.0"
+repository  = "https://github.com/AGenNext/Agent-Memory"
+homepage    = "https://github.com/AGenNext/Agent-Memory"
+documentation = "https://docs.rs/agent-memory"
+keywords    = ["ai", "agent", "memory", "mcp", "surrealdb"]
+categories  = ["database", "asynchronous"]
+readme      = "README.md"
+exclude     = ["schemas/", "*.md"]
+
+[lib]
+name = "agent_memory"
+path = "src/lib.rs"
 
 [[bin]]
 name = "agent-memory"
@@ -16,8 +27,8 @@ surrealdb   = { version = "3.1.2", features = ["kv-rocksdb", "kv-mem"] }
 # Async runtime
 tokio       = { version = "1.52.3", features = ["full"] }
 
-# MCP server — Model Context Protocol, built into the binary
-rmcp        = { version = "1.7.0", features = ["server", "transport-io"] }
+# MCP server — Model Context Protocol (optional feature)
+rmcp        = { version = "1.7.0", features = ["server", "transport-io"], optional = true }
 
 # Serialisation
 serde       = { version = "1.0.228", features = ["derive"] }
@@ -36,12 +47,19 @@ tracing-subscriber  = { version = "0.3.23", features = ["env-filter", "json"] }
 uuid        = { version = "1.23.2", features = ["v4", "serde"] }
 chrono      = { version = "0.4.44", features = ["serde"] }
 
-# HTTP health check (for SurrealDB server mode)
-reqwest     = { version = "0.13.4", features = ["json"], default-features = false }
+# HTTP health check (for SurrealDB server mode — optional)
+reqwest     = { version = "0.13.4", features = ["json"], default-features = false, optional = true }
 
 # CLI / config
 clap        = { version = "4", features = ["derive", "env"] }
 dirs        = { version = "6" }
+
+[features]
+default = []
+# Enable SurrealDB HTTP server mode (requires surreal binary in PATH)
+server-mode = ["reqwest"]
+# Enable MCP server
+mcp = ["rmcp"]
 
 [profile.release]
 opt-level   = 3
