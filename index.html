@@ -559,6 +559,14 @@
 </head>
 <body>
 
+<!-- Metrics announcement banner -->
+<div style="background:linear-gradient(90deg,rgba(124,106,245,0.15),rgba(61,217,179,0.1));border-bottom:1px solid rgba(124,106,245,0.3);padding:10px 40px;text-align:center;font-size:12px;letter-spacing:0.06em;font-family:var(--mono);position:relative;z-index:101;">
+  <span style="color:var(--accent2);">&#9679;</span>&nbsp;
+  <span style="color:var(--text);">Starting tomorrow we will publish real-world usage metrics — decay tuning data, recall tier distribution, gap probe rates — from live deployments.</span>&nbsp;
+  <a href="https://github.com/AGenNext/Agent-Memory" style="color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(124,106,245,0.4);">Follow the repo</a>
+  <span style="color:var(--muted);"> to get notified.</span>
+</div>
+
 <nav>
   <a class="nav-logo" href="#"><span>agent-</span>memory</a>
   <ul>
@@ -863,46 +871,5 @@ memory.<span class="c-fn">remember</span>(<span class="c-t">MemoryInput</span> {
   </div>
 </footer>
 
-<script>
-const rows = [
-  ["Ebbinghaus decay",         "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
-  ["Episodic immutability",    "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
-  ["Conflict resolution",      "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
-  ["Gap protocol + replay",    "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
-  ["Versioned interpretations","✓",  "✗",  "partial","✗","✗",  "✗"],
-  ["Temporal knowledge graph", "partial","✗","✓","✗","✗",  "✗"],
-  ["Vector search",            "✓",  "✓",  "✓",  "✓",  "✓",  "✓"],
-  ["BM25 full-text",           "✓",  "✗",  "✓",  "partial","partial","partial"],
-  ["Graph relations",          "✓",  "✓ (Pro)","✓","✗","✗","✗"],
-  ["Zero external deps",       "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
-  ["Framework-agnostic",       "✓",  "✓",  "✓",  "✗",  "✗",  "✗"],
-  ["Rust / Node / Python SDKs","✓",  "Python/JS","Python/JS","Python","Python","Python"],
-  ["Self-hostable",            "✓",  "✓",  "partial","✓","✓","✓"],
-  ["Open source",              "✓",  "✓",  "partial","✓","✓","✓"],
-  ["Cognitive science basis",  "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
-];
-
-const tbody = document.getElementById("comparison-table");
-if (tbody) {
-  rows.forEach(row => {
-    const tr = document.createElement("tr");
-    tr.style.borderBottom = "1px solid var(--border)";
-    row.forEach((cell, i) => {
-      const td = document.createElement("td");
-      td.style.padding = "10px 16px";
-      td.style.textAlign = i === 0 ? "left" : "center";
-      td.style.fontFamily = i === 0 ? "var(--mono)" : "var(--sans)";
-      td.style.fontSize = "13px";
-      if (cell === "✓") { td.textContent = "✓"; td.style.color = "var(--accent2)"; td.style.fontWeight = "600"; }
-      else if (cell === "✗") { td.textContent = "✗"; td.style.color = "var(--border)"; }
-      else if (cell === "partial") { td.textContent = "~"; td.style.color = "var(--accent3)"; }
-      else { td.textContent = cell; td.style.color = i === 1 ? "var(--accent)" : "var(--muted)"; td.style.fontSize = "11px"; }
-      if (i === 1) td.style.background = "rgba(124,106,245,0.05)";
-      tr.appendChild(td);
-    });
-    tbody.appendChild(tr);
-  });
-}
-</script>
 </body>
 </html>
