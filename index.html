@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent-Memory — Open Memory Layer for AI Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a0a0f;
+    --surface:   #111118;
+    --border:    #1e1e2e;
+    --dim:       #2a2a3e;
+    --text:      #e8e8f0;
+    --muted:     #6b6b8a;
+    --accent:    #7c6af5;
+    --accent2:   #3dd9b3;
+    --accent3:   #f5a623;
+    --danger:    #e05252;
+    --mono:      'IBM Plex Mono', monospace;
+    --sans:      'IBM Plex Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* Grid noise texture */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,245,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,245,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Nav */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 40px;
+    background: rgba(10,10,15,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-logo {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .nav-logo span { color: var(--text); }
+
+  nav ul {
+    display: flex;
+    gap: 32px;
+    list-style: none;
+  }
+
+  nav a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 12px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    transition: color 0.2s;
+  }
+
+  nav a:hover { color: var(--text); }
+
+  .nav-cta {
+    background: var(--accent);
+    color: #fff !important;
+    padding: 8px 16px;
+    border-radius: 2px;
+    font-weight: 500;
+  }
+
+  .nav-cta:hover { background: #6655e0 !important; color: #fff; }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 120px 40px 80px;
+    text-align: center;
+    z-index: 1;
+  }
+
+  .hero-tag {
+    display: inline-block;
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    border: 1px solid var(--accent2);
+    padding: 4px 12px;
+    margin-bottom: 32px;
+    animation: fadeUp 0.6s ease both;
+  }
+
+  .hero h1 {
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    margin-bottom: 24px;
+    animation: fadeUp 0.6s 0.1s ease both;
+  }
+
+  .hero h1 strong {
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .hero-desc {
+    max-width: 600px;
+    font-family: var(--sans);
+    font-size: 18px;
+    color: var(--muted);
+    font-weight: 300;
+    line-height: 1.7;
+    margin-bottom: 48px;
+    animation: fadeUp 0.6s 0.2s ease both;
+  }
+
+  .hero-actions {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    animation: fadeUp 0.6s 0.3s ease both;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #fff;
+    padding: 14px 28px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    border-radius: 2px;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .btn-primary:hover { background: #6655e0; transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text);
+    padding: 14px 28px;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    transition: border-color 0.2s, transform 0.1s;
+  }
+
+  .btn-secondary:hover { border-color: var(--muted); transform: translateY(-1px); }
+
+  /* Code snippet in hero */
+  .hero-code {
+    margin-top: 64px;
+    width: 100%;
+    max-width: 680px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    text-align: left;
+    animation: fadeUp 0.6s 0.4s ease both;
+    overflow: hidden;
+  }
+
+  .code-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--dim);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-r { background: #e05252; }
+  .dot-y { background: #f5a623; }
+  .dot-g { background: #3dd9b3; }
+
+  .code-lang {
+    margin-left: auto;
+    font-size: 10px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .code-body {
+    padding: 24px;
+    font-size: 13px;
+    line-height: 1.8;
+    overflow-x: auto;
+  }
+
+  .c-kw  { color: #c792ea; }
+  .c-fn  { color: var(--accent2); }
+  .c-str { color: var(--accent3); }
+  .c-cm  { color: var(--muted); font-style: italic; }
+  .c-num { color: #f78c6c; }
+  .c-t   { color: #82aaff; }
+
+  /* Stats strip */
+  .stats {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    gap: 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    flex-wrap: wrap;
+  }
+
+  .stat-item {
+    flex: 1;
+    min-width: 160px;
+    padding: 32px 24px;
+    text-align: center;
+    border-right: 1px solid var(--border);
+  }
+
+  .stat-item:last-child { border-right: none; }
+
+  .stat-num {
+    display: block;
+    font-size: 32px;
+    font-weight: 600;
+    color: var(--accent);
+    letter-spacing: -0.02em;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Sections */
+  section {
+    position: relative;
+    z-index: 1;
+    padding: 100px 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .section-tag {
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent2);
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  h2 {
+    font-size: clamp(24px, 3vw, 36px);
+    font-weight: 300;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  h2 strong { font-weight: 600; }
+
+  .section-sub {
+    font-family: var(--sans);
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 560px;
+    line-height: 1.7;
+    margin-bottom: 64px;
+  }
+
+  /* Memory model grid */
+  .model-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .model-card {
+    background: var(--surface);
+    padding: 32px;
+    transition: background 0.2s;
+  }
+
+  .model-card:hover { background: var(--dim); }
+
+  .model-icon {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .model-icon::before {
+    content: '';
+    display: block;
+    width: 20px;
+    height: 1px;
+    background: var(--accent);
+  }
+
+  .model-card h3 {
+    font-size: 16px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .model-card p {
+    font-family: var(--sans);
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* Formula */
+  .formula-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    padding: 24px 32px;
+    margin: 32px 0;
+    font-size: 15px;
+    letter-spacing: 0.04em;
+  }
+
+  .formula-block .formula {
+    color: var(--accent2);
+    font-size: 18px;
+    margin-bottom: 8px;
+  }
+
+  .formula-block .formula-note {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: var(--sans);
+  }
+
+  /* Layers */
+  .layers {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .layer {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 20px 28px;
+    background: var(--surface);
+    transition: background 0.15s;
+  }
+
+  .layer:hover { background: var(--dim); }
+
+  .layer-num {
+    font-size: 11px;
+    color: var(--muted);
+    width: 20px;
+    flex-shrink: 0;
+  }
+
+  .layer-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent2);
+    width: 200px;
+    flex-shrink: 0;
+  }
+
+  .layer-desc {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    flex: 1;
+  }
+
+  .layer-badge {
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .badge-rust { background: rgba(245,166,35,0.15); color: var(--accent3); border: 1px solid rgba(245,166,35,0.3); }
+  .badge-db   { background: rgba(61,217,179,0.1);  color: var(--accent2); border: 1px solid rgba(61,217,179,0.2); }
+
+  /* SDK section */
+  .sdk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 40px;
+  }
+
+  .sdk-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 24px;
+    text-decoration: none;
+    transition: border-color 0.2s, transform 0.1s;
+  }
+
+  .sdk-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+  .sdk-card-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+
+  .sdk-card-install {
+    font-size: 12px;
+    color: var(--accent2);
+    margin-bottom: 12px;
+  }
+
+  .sdk-card-note {
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* Conflict section */
+  .conflict-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .conflict-card {
+    background: var(--surface);
+    padding: 28px;
+  }
+
+  .conflict-type {
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .ct-mis  { color: var(--accent3); }
+  .ct-firm { color: var(--accent); }
+  .ct-fact { color: var(--danger); }
+
+  .conflict-card h3 {
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 10px;
+  }
+
+  .conflict-card p {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+
+  /* Footer */
+  footer {
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 48px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: gap;
+    max-width: 1100px;
+    margin: 0 auto;
+    gap: 24px;
+  }
+
+  .footer-left { font-size: 13px; color: var(--muted); }
+  .footer-left a { color: var(--accent); text-decoration: none; }
+  .footer-right { display: flex; gap: 24px; }
+  .footer-right a { font-size: 12px; color: var(--muted); text-decoration: none; letter-spacing: 0.06em; }
+  .footer-right a:hover { color: var(--text); }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="#"><span>agent-</span>memory</a>
+  <ul>
+    <li><a href="#model">Memory Model</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#sdks">SDKs</a></li>
+    <li><a href="#conflict">Conflict</a></li>
+    <li><a href="https://github.com/AGenNext/Agent-Memory" class="nav-cta">GitHub</a></li>
+  </ul>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <span class="hero-tag">Open Source · Apache-2.0 · v0.1.0</span>
+  <h1>Memory that <strong>thinks</strong><br>like a human does</h1>
+  <p class="hero-desc">
+    An open memory layer for AI agents. Embedded SurrealDB. Ebbinghaus decay.
+    Episodic replay. Conflict resolution. Single Rust binary — no server, no network,
+    no install.
+  </p>
+  <div class="hero-actions">
+    <a href="https://github.com/AGenNext/Agent-Memory" class="btn-primary">View on GitHub</a>
+    <a href="#model" class="btn-secondary">Read the model</a>
+  </div>
+
+  <div class="hero-code">
+    <div class="code-bar">
+      <div class="dot dot-r"></div>
+      <div class="dot dot-y"></div>
+      <div class="dot dot-g"></div>
+      <span class="code-lang">Rust</span>
+    </div>
+    <div class="code-body"><pre><span class="c-cm">// Boots embedded DB — no server, no install</span>
+<span class="c-kw">let</span> memory = <span class="c-t">AgentMemory</span>::<span class="c-fn">open</span>(<span class="c-str">"./data"</span>).<span class="c-kw">await</span>?;
+
+<span class="c-cm">// Store with Ebbinghaus decay configured per category</span>
+memory.<span class="c-fn">remember</span>(<span class="c-t">MemoryInput</span> {
+    agent_id: <span class="c-str">"my-agent"</span>,
+    content:  <span class="c-str">"User prefers technically precise responses"</span>,
+    category: <span class="c-t">MemoryCategory</span>::Identity,
+    importance: <span class="c-t">Some</span>(<span class="c-num">0.9</span>),
+    ..<span class="c-t">Default</span>::default()
+}).<span class="c-kw">await</span>?;
+
+<span class="c-cm">// 5-tier escalating recall with gap protocol</span>
+<span class="c-kw">let</span> result = memory.<span class="c-fn">recall_or_gap</span>(query, human_insistence).<span class="c-kw">await</span>?;
+
+<span class="c-kw">match</span> result {
+    <span class="c-t">Found</span>(r)  => <span class="c-cm">/* inject into prompt */</span>
+    <span class="c-t">Gap</span>(g)    => <span class="c-cm">/* ask: g.suggested_prompt */</span>
+}</pre></div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat-item">
+    <span class="stat-num">6</span>
+    <span class="stat-label">Memory categories</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">5</span>
+    <span class="stat-label">Recall tiers</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">3</span>
+    <span class="stat-label">Conflict types</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">11</span>
+    <span class="stat-label">MCP tools</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-num">0</span>
+    <span class="stat-label">External deps at runtime</span>
+  </div>
+</div>
+
+<!-- Memory Model -->
+<section id="model">
+  <span class="section-tag">Memory Model</span>
+  <h2>Built on how memory<br><strong>actually works</strong></h2>
+  <p class="section-sub">
+    Grounded in Schacter's Seven Sins of Memory, Ebbinghaus forgetting curves,
+    and HSAM research. Perfect memory is pathological. Forgetting is a feature.
+  </p>
+
+  <div class="formula-block">
+    <div class="formula">effective_confidence = base × e<sup>−λ × days</sup></div>
+    <div class="formula-note">
+      λ is category-specific and user-tunable via config.toml.
+      Facts (λ=0) never decay. Context (λ=0.5) fades in days. Identity (λ=0.001) persists for years.
+    </div>
+  </div>
+
+  <div class="model-grid">
+    <div class="model-card">
+      <div class="model-icon">episodic</div>
+      <h3>Immutable canonical truth</h3>
+      <p>Raw conversation turns. Never superseded. The chat log is more reliable than human recall. epistemic_status = fact, decay_lambda = 0.</p>
+    </div>
+    <div class="model-card">
+      <div class="model-icon">identity</div>
+      <h3>Durable person model</h3>
+      <p>Who the human is, how they operate. Decays very slowly (λ=0.001). Still strong after a year without reinforcement.</p>
+    </div>
+    <div class="model-card">
+      <div class="model-icon">knowledge</div>
+      <h3>Learned facts</h3>
+      <p>Things shared or discovered. Medium decay (λ=0.02). Reinforced every time it surfaces in a useful recall. Fades without use.</p>
+    </div>
+    <div class="model-card">
+      <div class="model-icon">context</div>
+      <h3>Session working context</h3>
+      <p>Current conversation state. Fast decay (λ=0.5). Gone in days. Analogous to working memory — not meant to persist.</p>
+    </div>
+    <div class="model-card">
+      <div class="model-icon">instruction</div>
+      <h3>Behavioural directives</h3>
+      <p>"Always answer in bullet points." λ=0. Never decays. Injected into every prompt via the Cortex layer.</p>
+    </div>
+    <div class="model-card">
+      <div class="model-icon">uncertainty</div>
+      <h3>Known unknowns</h3>
+      <p>Explicit "we don't know yet" markers emitted by the reconciler. Medium decay — gets resolved or fades.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Architecture -->
+<section id="architecture">
+  <span class="section-tag">Architecture</span>
+  <h2>One binary.<br><strong>Everything inside.</strong></h2>
+  <p class="section-sub">
+    Rust computes. SurrealDB stores and indexes. No network. No process boundary.
+    The entire memory layer runs in-process.
+  </p>
+
+  <div class="layers">
+    <div class="layer">
+      <span class="layer-num">1</span>
+      <span class="layer-name">AgentMemory (public API)</span>
+      <span class="layer-desc">Clean surface: remember, recall, update, forget, resolve_conflict, analytics</span>
+      <span class="layer-badge badge-rust">Rust</span>
+    </div>
+    <div class="layer">
+      <span class="layer-num">2</span>
+      <span class="layer-name">MemoryService</span>
+      <span class="layer-desc">Orchestration, decay computation, reinforcement on recall, reconciler</span>
+      <span class="layer-badge badge-rust">Rust</span>
+    </div>
+    <div class="layer">
+      <span class="layer-num">3</span>
+      <span class="layer-name">EscalatingRecall</span>
+      <span class="layer-desc">5 tiers: direct → hybrid BM25+vector → superseded → temporal → scope → gap probe</span>
+      <span class="layer-badge badge-rust">Rust</span>
+    </div>
+    <div class="layer">
+      <span class="layer-num">4</span>
+      <span class="layer-name">CortexSynthesiser</span>
+      <span class="layer-desc">Background sleep cycle: intraday synthesis, daily rollup, knowledge brief, active episode</span>
+      <span class="layer-badge badge-rust">Rust</span>
+    </div>
+    <div class="layer">
+      <span class="layer-num">5</span>
+      <span class="layer-name">ConflictResolver</span>
+      <span class="layer-desc">Misinterpretation → version. AgentStandsFirm → show log. FactualContradiction → halt.</span>
+      <span class="layer-badge badge-rust">Rust</span>
+    </div>
+    <div class="layer">
+      <span class="layer-num">6</span>
+      <span class="layer-name">Store (SurrealDB)</span>
+      <span class="layer-desc">BM25 full-text, HNSW vector search, graph traversal, tri-temporal queries, MVCC</span>
+      <span class="layer-badge badge-db">SurrealDB</span>
+    </div>
+    <div class="layer">
+      <span class="layer-num">7</span>
+      <span class="layer-name">RocksDB</span>
+      <span class="layer-desc">Persistent key-value storage on disk. Embedded, no server, no network.</span>
+      <span class="layer-badge badge-db">RocksDB</span>
+    </div>
+  </div>
+</section>
+
+<!-- Conflict Resolution -->
+<section id="conflict">
+  <span class="section-tag">Conflict Resolution</span>
+  <h2>When human and agent<br><strong>disagree</strong></h2>
+  <p class="section-sub">
+    Three distinct conflict types. Each handled differently.
+    The chat log always outranks human memory.
+    Confidence does not equal accuracy.
+  </p>
+
+  <div class="conflict-grid">
+    <div class="conflict-card">
+      <div class="conflict-type ct-mis">— Misinterpretation</div>
+      <h3>"That's not what I meant"</h3>
+      <p>Agent stored an interpretation. Human says it was wrong. Agent accepts, versions the interpretation, logs what was misread. History preserved via supersession chain.</p>
+    </div>
+    <div class="conflict-card">
+      <div class="conflict-type ct-firm">— Agent Stands Firm</div>
+      <h3>"You told me X"</h3>
+      <p>Human claims the agent said something different. Agent retrieves the exact episodic record. Shows verbatim text, timestamp, session ID. Offers a new decision, not a revision.</p>
+    </div>
+    <div class="conflict-card">
+      <div class="conflict-type ct-fact">— Factual Contradiction</div>
+      <h3>"The number was different"</h3>
+      <p>Human disputes a number or verifiable fact from the chat log. Agent shows the exact line. Sets halt_reasoning=true. Does not continue reasoning from the contested value.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SDKs -->
+<section id="sdks">
+  <span class="section-tag">SDKs</span>
+  <h2>Every language.<br><strong>One embedded runtime.</strong></h2>
+  <p class="section-sub">
+    SurrealDB runs inside the process. No server to deploy. No port to configure.
+    Native bindings via napi-rs (Node.js) and PyO3 (Python).
+  </p>
+
+  <div class="sdk-grid">
+    <a href="https://crates.io/crates/agent-memory" class="sdk-card">
+      <div class="sdk-card-name">Rust</div>
+      <div class="sdk-card-install">cargo add agent-memory</div>
+      <div class="sdk-card-note">Native library. Full API. Zero overhead. No bindings layer.</div>
+    </a>
+    <a href="https://www.npmjs.com/package/@agentnxxt/agent-memory" class="sdk-card">
+      <div class="sdk-card-name">Node.js / TypeScript</div>
+      <div class="sdk-card-install">npm install @agentnxxt/agent-memory</div>
+      <div class="sdk-card-note">napi-rs native bindings. Full TypeScript types. Works in LangChain.js, Vercel AI SDK.</div>
+    </a>
+    <a href="#" class="sdk-card">
+      <div class="sdk-card-name">Python</div>
+      <div class="sdk-card-install">pip install agent-memory</div>
+      <div class="sdk-card-note">PyO3 bindings. Async-native. Works in LangChain, CrewAI, AutoGen.</div>
+    </a>
+    <a href="#" class="sdk-card">
+      <div class="sdk-card-name">MCP</div>
+      <div class="sdk-card-install">agent-memory (stdio)</div>
+      <div class="sdk-card-note">11 MCP tools. Works directly in Claude Desktop, Claude Code, and any MCP client.</div>
+    </a>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-left">
+    Built by <a href="https://openautonomyx.com">OpenAutonomyx</a> ·
+    <a href="https://github.com/AGenNext/Agent-Memory">github.com/AGenNext/Agent-Memory</a>
+  </div>
+  <div class="footer-right">
+    <a href="https://github.com/AGenNext/Agent-Memory">GitHub</a>
+    <a href="https://crates.io/crates/agent-memory">crates.io</a>
+    <a href="https://docs.rs/agent-memory">docs.rs</a>
+    <a href="https://github.com/AGenNext/Agent-Memory/blob/main/LICENSE">Apache-2.0</a>
+  </div>
+</footer>
+
+</body>
+</html>
