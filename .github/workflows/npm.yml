@@ -1,0 +1,137 @@
+name: Publish npm
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Node — ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            npm_name: linux-x64-gnu
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            npm_name: linux-arm64-gnu
+            use_cross: true
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            npm_name: linux-x64-musl
+            use_cross: true
+
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-musl
+            npm_name: linux-arm64-musl
+            use_cross: true
+
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            npm_name: darwin-arm64
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            npm_name: darwin-x64
+
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            npm_name: win32-x64-msvc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install cross
+        if: matrix.use_cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Install napi-rs CLI
+        run: npm install -g @napi-rs/cli
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.target }}-node-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build (cross)
+        if: matrix.use_cross
+        working-directory: agent-memory-node
+        run: cross build --release --target ${{ matrix.target }}
+
+      - name: Build (native)
+        if: '!matrix.use_cross'
+        working-directory: agent-memory-node
+        run: |
+          napi build \
+            --platform \
+            --release \
+            --target ${{ matrix.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-memory-${{ matrix.npm_name }}
+          path: agent-memory-node/*.node
+
+  publish:
+    name: Publish to npm
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: agent-memory-node/artifacts
+
+      - name: Move binaries
+        working-directory: agent-memory-node
+        run: |
+          ls artifacts/
+          cp artifacts/**/*.node .
+
+      - name: Install napi-rs CLI
+        run: npm install -g @napi-rs/cli
+
+      - name: Publish platform packages
+        working-directory: agent-memory-node
+        run: napi prepublish -t npm --skip-gh-release
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish main package
+        working-directory: agent-memory-node
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
