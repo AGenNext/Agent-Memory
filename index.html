@@ -584,6 +584,51 @@
     <a href="#model" class="btn-secondary">Read the model</a>
   </div>
 
+  <!-- GitHub star + social share -->
+  <div class="hero-social" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;justify-content:center;margin-top:32px;animation:fadeUp 0.6s 0.45s ease both;opacity:0;animation-fill-mode:both;">
+    <!-- GitHub Star -->
+    <a href="https://github.com/AGenNext/Agent-Memory" target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:8px;background:#1a1a2e;border:1px solid #30304a;padding:8px 16px;border-radius:4px;text-decoration:none;font-size:13px;color:#e8e8f0;transition:border-color 0.2s,transform 0.1s;"
+       onmouseover="this.style.borderColor='#7c6af5';this.style.transform='translateY(-1px)'"
+       onmouseout="this.style.borderColor='#30304a';this.style.transform='none'">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="#f5a623"><path d="M8 .25a.75.75 0 01.673.418l1.882 3.815 4.21.612a.75.75 0 01.416 1.279l-3.046 2.97.719 4.192a.75.75 0 01-1.088.791L8 12.347l-3.766 1.98a.75.75 0 01-1.088-.79l.72-4.194L.818 6.374a.75.75 0 01.416-1.28l4.21-.611L7.327.668A.75.75 0 018 .25z"/></svg>
+      <span>Star on GitHub</span>
+      <span id="star-count" style="background:#2a2a3e;padding:2px 8px;border-radius:10px;font-size:11px;color:#7c6af5;">★</span>
+    </a>
+
+    <!-- Share on X/Twitter -->
+    <a href="https://twitter.com/intent/tweet?text=Agent-Memory%3A+Open+memory+layer+for+AI+agents.+Ebbinghaus+decay%2C+episodic+replay%2C+conflict+resolution.+Single+Rust+binary.&url=https%3A%2F%2Fagennext.github.io%2FAgent-Memory%2F&via=openautonomyx"
+       target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:8px;background:#1a1a2e;border:1px solid #30304a;padding:8px 16px;border-radius:4px;text-decoration:none;font-size:13px;color:#e8e8f0;transition:border-color 0.2s,transform 0.1s;"
+       onmouseover="this.style.borderColor='#3dd9b3';this.style.transform='translateY(-1px)'"
+       onmouseout="this.style.borderColor='#30304a';this.style.transform='none'">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="#3dd9b3"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+      <span>Share on X</span>
+    </a>
+
+    <!-- Share on LinkedIn -->
+    <a href="https://www.linkedin.com/sharing/share-offsite/?url=https%3A%2F%2Fagennext.github.io%2FAgent-Memory%2F"
+       target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:8px;background:#1a1a2e;border:1px solid #30304a;padding:8px 16px;border-radius:4px;text-decoration:none;font-size:13px;color:#e8e8f0;transition:border-color 0.2s,transform 0.1s;"
+       onmouseover="this.style.borderColor='#4a9eed';this.style.transform='translateY(-1px)'"
+       onmouseout="this.style.borderColor='#30304a';this.style.transform='none'">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="#4a9eed"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+      <span>Share on LinkedIn</span>
+    </a>
+  </div>
+
+  <script>
+    // Fetch real GitHub star count
+    fetch('https://api.github.com/repos/AGenNext/Agent-Memory')
+      .then(r => r.json())
+      .then(d => {
+        const el = document.getElementById('star-count');
+        if (el && d.stargazers_count !== undefined) {
+          el.textContent = d.stargazers_count.toLocaleString() + ' stars';
+        }
+      }).catch(() => {});
+  </script>
+
   <div class="hero-code">
     <div class="code-bar">
       <div class="dot dot-r"></div>
