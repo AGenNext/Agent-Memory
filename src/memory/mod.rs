@@ -1,3 +1,4 @@
+pub mod conflict;
 pub mod decay;
 pub mod gap;
 pub mod service;
