@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
+use chrono::Utc;
 use surrealdb::{
     engine::local::{Db, Mem, RocksDb},
     RecordId, Surreal,
@@ -136,7 +137,7 @@ impl Store {
             let _ = self.update_session_index(
                 &memory.agent_id,
                 sid,
-                memory.known_time.unwrap_or_else(chrono::Utc::now),
+                memory.known_time.unwrap_or_else(Utc::now),
                 memory.keywords.clone(),
             ).await;
         }
