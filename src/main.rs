@@ -2,6 +2,7 @@ mod config;
 mod memory;
 mod mcp;
 mod services;
+mod telemetry;
 
 use std::path::PathBuf;
 use std::sync::Arc;
