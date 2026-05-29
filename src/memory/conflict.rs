@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::Utc;
-use surrealdb::RecordId;
+use surrealdb::types::{RecordId, SurrealValue};
 use tracing::{info, warn};
 
 use crate::memory::{
@@ -183,7 +183,7 @@ impl<'a> ConflictResolver<'a> {
                         epistemic_status: Some(EpistemicStatus::Belief),
                         derived_from:    Some(
                             derived.iter()
-                                .map(|r| r.key().to_string())
+                                .map(|r| r.key_str())
                                 .chain(std::iter::once(mid.clone()))
                                 .collect()
                         ),
@@ -194,6 +194,7 @@ impl<'a> ConflictResolver<'a> {
                         keywords:        prior.keywords.clone(),
                         tags:            prior.tags.clone(),
                         embedding:       None,
+                        decay_lambda:    None,
                     }).await?;
 
                     resolved_memory_id = new_mem.id.clone();
@@ -204,7 +205,7 @@ impl<'a> ConflictResolver<'a> {
                     info!(
                         "misinterpretation resolved: {} → {} (v{})",
                         mid,
-                        new_mem.id.as_ref().map(|i| i.to_string()).unwrap_or_default(),
+                        new_mem.id.as_ref().map(|i| i.key_str()).unwrap_or_default(),
                         interpretation_version
                     );
                 }
@@ -596,7 +597,7 @@ impl Store {
 }
 
 /// Flat row returned from DB for display
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, surrealdb::types::SurrealValue)]
 pub struct ConflictTraceRow {
     pub id:                    Option<RecordId>,
     pub agent_id:              String,

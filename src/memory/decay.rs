@@ -98,6 +98,12 @@ pub const DEFAULT_RETRIEVAL_THRESHOLD: f64 = 0.15;
 /// Default escalating threshold — used when config is not available.
 pub const DEFAULT_ESCALATING_THRESHOLD: f64 = 0.05;
 
+/// Alias for the default retrieval threshold (used by the gap protocol).
+pub const RETRIEVAL_THRESHOLD: f64 = DEFAULT_RETRIEVAL_THRESHOLD;
+
+/// Alias for the default escalating threshold (used by the gap protocol).
+pub const ESCALATING_THRESHOLD: f64 = DEFAULT_ESCALATING_THRESHOLD;
+
 /// Reinforcement: reset decay by updating last_reinforced_at.
 pub fn next_reinforcement_count(current: i64) -> i64 {
     current + 1

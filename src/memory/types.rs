@@ -1,43 +1,51 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use surrealdb::RecordId;
+use surrealdb::types::{RecordId, SurrealValue};
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum MemoryCategory {
     Episodic, Identity, Knowledge, Context, Instruction, Uncertainty,
 }
+impl Default for MemoryCategory { fn default() -> Self { Self::Knowledge } }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum EpistemicStatus {
     Fact, Belief, Assumption, Hearsay, Inferred,
 }
 impl Default for EpistemicStatus { fn default() -> Self { Self::Belief } }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum SourceKind {
     AgentTurn, UserTurn, Document, Reflection,
     Elaboration, Consolidation, ToolOutput, External,
 }
 impl Default for SourceKind { fn default() -> Self { Self::AgentTurn } }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum MemoryScope { Agent, Team, Org, Project }
 impl Default for MemoryScope { fn default() -> Self { Self::Agent } }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum EdgeKind { RelatedTo, Updates, Contradicts, CausedBy, PartOf }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum DecisionStatus { Pending, Success, Failed, Rejected }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum RetrievalTier {
     DirectLookup  = 1,
     ResponseReuse = 2,
@@ -46,19 +54,21 @@ pub enum RetrievalTier {
 }
 impl Default for RetrievalTier { fn default() -> Self { Self::Hybrid } }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum WorkingMemoryLayer {
     IdentityContext, IntradaySynthesis, DailyRollup,
     CrossAgentMap, KnowledgeBrief,
     ActiveEpisode, // loaded when a past session is replayed
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
+#[surreal(untagged, rename_all = "snake_case")]
 pub enum EvolutionStatus { Pending, Processing, Done, Skipped }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct Memory {
     pub id:               Option<RecordId>,
     pub category:         MemoryCategory,
@@ -98,7 +108,7 @@ pub struct Memory {
     pub updated_at:       Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, SurrealValue)]
 pub struct MemoryInput {
     pub category:         MemoryCategory,
     pub content:          String,
@@ -122,7 +132,7 @@ pub struct MemoryInput {
     pub decay_lambda:     Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct SupersedeInput {
     pub old_memory_id: String,
     pub new_content:   String,
@@ -132,7 +142,7 @@ pub struct SupersedeInput {
     pub embedding:     Option<Vec<f32>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct RecallQuery {
     pub agent_id:           String,
     pub query_text:         String,
@@ -157,25 +167,8 @@ impl Default for RecallQuery {
         }
     }
 }
-impl Clone for RecallQuery {
-    fn clone(&self) -> Self {
-        Self {
-            agent_id: self.agent_id.clone(),
-            query_text: self.query_text.clone(),
-            query_embedding: self.query_embedding.clone(),
-            categories: self.categories.clone(),
-            scope: self.scope.clone(),
-            session_id: self.session_id.clone(),
-            include_superseded: self.include_superseded,
-            tier: self.tier,
-            top_k: self.top_k,
-            min_confidence: self.min_confidence,
-            valid_at: self.valid_at,
-        }
-    }
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct RecallResult {
     pub memories:   Vec<Memory>,
     pub trace_id:   Option<RecordId>,
@@ -183,13 +176,13 @@ pub struct RecallResult {
     pub candidates: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct MemEdge {
     pub id: Option<RecordId>, pub r#in: RecordId, pub out: RecordId,
     pub kind: EdgeKind, pub weight: f64, pub created_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct RetrievalTrace {
     pub id: Option<RecordId>, pub agent_id: String,
     pub session_id: Option<String>, pub query_text: String,
@@ -199,7 +192,7 @@ pub struct RetrievalTrace {
     pub created_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct DecisionTrace {
     pub id: Option<RecordId>, pub run_id: String, pub step_id: String,
     pub agent_id: String, pub actor: Option<String>, pub action: String,
@@ -208,7 +201,7 @@ pub struct DecisionTrace {
     pub created_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct WorkingMemory {
     pub id: Option<RecordId>, pub agent_id: String,
     pub layer: WorkingMemoryLayer, pub content: String,
@@ -219,10 +212,37 @@ pub struct WorkingMemory {
     pub updated_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, SurrealValue)]
 pub struct EvolutionJob {
     pub id: Option<RecordId>, pub new_memory_id: RecordId,
     pub agent_id: String, pub category: String,
     pub status: EvolutionStatus, pub processed_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,
+}
+
+// ---------------------------------------------------------------------------
+// RecordId helpers
+//
+// SurrealDB 3.x `RecordId` exposes `table`/`key` as fields and implements
+// `ToSql` rather than `Display`. The memory layer routinely needs the bare
+// record key as a plain `String` (to round-trip through tool calls and to
+// rebuild a `RecordId` via `RecordId::new("memory", key)`), so we provide a
+// small extension trait for that.
+// ---------------------------------------------------------------------------
+
+pub trait RecordIdExt {
+    /// The record's key, rendered as a plain string (no table prefix).
+    fn key_str(&self) -> String;
+}
+
+impl RecordIdExt for RecordId {
+    fn key_str(&self) -> String {
+        use surrealdb::types::RecordIdKey;
+        match &self.key {
+            RecordIdKey::String(s) => s.clone(),
+            RecordIdKey::Number(n) => n.to_string(),
+            RecordIdKey::Uuid(u) => u.to_string(),
+            other => format!("{other:?}"),
+        }
+    }
 }

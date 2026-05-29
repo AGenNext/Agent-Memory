@@ -4,8 +4,9 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use surrealdb::{
     engine::local::{Db, Mem, RocksDb},
-    RecordId, Surreal,
+    Surreal,
 };
+use surrealdb::types::{RecordId, SurrealValue, Value};
 use tracing::{debug, info};
 
 use crate::memory::types::*;
@@ -24,7 +25,7 @@ const DB: &str = "agent_memory";
 
 #[derive(Clone)]
 pub struct Store {
-    db: Surreal<Db>,
+    pub(crate) db: Surreal<Db>,
 }
 
 impl Store {
@@ -70,6 +71,10 @@ impl Store {
     pub async fn create_memory(&self, input: MemoryInput) -> Result<Memory> {
         let scope = input.scope.unwrap_or_default();
         let source_kind = input.source_kind.unwrap_or_default();
+        let epistemic_status = input.epistemic_status.clone().unwrap_or_default();
+        let decay_lambda = input.decay_lambda.unwrap_or_else(|| {
+            crate::memory::decay::decay_lambda(&input.category, &epistemic_status)
+        });
 
         let mut res = self.db
             .query(
@@ -100,15 +105,15 @@ impl Store {
                 RETURN *;
                 "#,
             )
-            .bind(("category",         serde_json::to_value(&input.category)?))
+            .bind(("category",         input.category.clone()))
             .bind(("content",          input.content))
             .bind(("summary",          input.summary))
             .bind(("agent_id",         input.agent_id))
             .bind(("session_id",       input.session_id))
-            .bind(("scope",            serde_json::to_value(&scope)?))
+            .bind(("scope",            scope))
             .bind(("valid_time_start", input.valid_time_start))
             .bind(("valid_time_end",   input.valid_time_end))
-            .bind(("source_kind",      serde_json::to_value(&source_kind)?))
+            .bind(("source_kind",      source_kind))
             .bind(("source_ref",       input.source_ref))
             .bind(("source_trust",     input.source_trust.unwrap_or(0.7)))
             .bind(("confidence",       input.confidence.unwrap_or(0.8)))
@@ -116,17 +121,8 @@ impl Store {
             .bind(("keywords",         input.keywords))
             .bind(("tags",             input.tags))
             .bind(("embedding",        input.embedding))
-            .bind(("epistemic_status",
-                serde_json::to_value(&input.epistemic_status.unwrap_or_default())?))
-            .bind(("decay_lambda",
-                input.decay_lambda.unwrap_or_else(|| {
-                    crate::memory::decay::decay_lambda(
-                        &input.category,
-                        &input.epistemic_status.as_ref().unwrap_or(
-                            &crate::memory::types::EpistemicStatus::Belief
-                        )
-                    )
-                })))
+            .bind(("epistemic_status", epistemic_status))
+            .bind(("decay_lambda",     decay_lambda))
             .await?;
 
         let memory: Option<Memory> = res.take(0)?;
@@ -153,33 +149,44 @@ impl Store {
     /// 1. Mark old as superseded
     /// 2. Create new with derived_from pointing to old
     /// 3. Create `updates` graph edge new → old
-    /// All in one transaction.
+    ///
+    /// Done as sequential statements rather than a transaction-with-RETURN so
+    /// that result indexing is stable across SurrealDB versions.
     pub async fn supersede_memory(&self, input: SupersedeInput) -> Result<(Memory, Memory)> {
-        let old_id = RecordId::from_table_key("memory", input.old_memory_id.clone());
+        let old_id = RecordId::new("memory", input.old_memory_id.clone());
         let source_kind = input.source_kind.unwrap_or_default();
 
+        // 1. Mark the old record superseded and fetch it back.
         let mut res = self.db
             .query(
                 r#"
-                BEGIN TRANSACTION;
-
                 UPDATE $old_id SET
                     superseded     = true,
                     superseded_at  = time::now(),
                     valid_time_end = time::now(),
-                    updated_at     = time::now();
+                    updated_at     = time::now()
+                RETURN AFTER;
+                "#,
+            )
+            .bind(("old_id", old_id.clone()))
+            .await?;
+        let old: Option<Memory> = res.take(0)?;
+        let old = old.context("supersede: old memory not found")?;
 
-                LET $old = SELECT * FROM $old_id;
-
-                LET $new = (CREATE memory SET
-                    category         = $old[0].category,
+        // 2. Create the new record, inheriting provenance from the old one,
+        //    with derived_from pointing back at the immutable original.
+        let mut res = self.db
+            .query(
+                r#"
+                CREATE memory SET
+                    category         = $category,
                     content          = $content,
-                    agent_id         = $old[0].agent_id,
-                    session_id       = $old[0].session_id,
-                    scope            = $old[0].scope,
+                    agent_id         = $agent_id,
+                    session_id       = $session_id,
+                    scope            = $scope,
                     source_kind      = $source_kind,
                     source_ref       = $source_ref,
-                    source_trust     = $old[0].source_trust,
+                    source_trust     = $source_trust,
                     confidence       = $confidence,
                     derived_from     = [$old_id],
                     embedding        = $embedding,
@@ -187,37 +194,51 @@ impl Store {
                     known_time       = time::now(),
                     created_at       = time::now(),
                     updated_at       = time::now()
-                RETURN *)[0];
+                RETURN *;
+                "#,
+            )
+            .bind(("category",     old.category.clone()))
+            .bind(("content",      input.new_content))
+            .bind(("agent_id",     old.agent_id.clone()))
+            .bind(("session_id",   old.session_id.clone()))
+            .bind(("scope",        old.scope.clone()))
+            .bind(("source_kind",  source_kind))
+            .bind(("source_ref",   input.source_ref))
+            .bind(("source_trust", old.source_trust))
+            .bind(("confidence",   input.confidence.unwrap_or(0.8)))
+            .bind(("old_id",       old_id.clone()))
+            .bind(("embedding",    input.embedding))
+            .await?;
+        let new: Option<Memory> = res.take(0)?;
+        let new = new.context("supersede: create new returned nothing")?;
+        let new_id = new.id.clone().context("supersede: new memory has no id")?;
 
-                UPDATE $old_id SET superseded_by = $new.id;
+        // 3. Point the old record at its successor and link them in the graph.
+        self.db
+            .query("UPDATE $old_id SET superseded_by = $new_id;")
+            .bind(("old_id", old_id.clone()))
+            .bind(("new_id", new_id.clone()))
+            .await?;
 
-                RELATE ($new.id)->mem_edge->($old_id) SET
+        self.db
+            .query(
+                r#"
+                RELATE $new_id->mem_edge->$old_id SET
                     kind       = 'updates',
                     weight     = 1.0,
                     created_at = time::now();
-
-                RETURN { old: $old[0], new: $new };
-                COMMIT TRANSACTION;
                 "#,
             )
-            .bind(("old_id",      old_id))
-            .bind(("content",     input.new_content))
-            .bind(("source_kind", serde_json::to_value(&source_kind)?))
-            .bind(("source_ref",  input.source_ref))
-            .bind(("confidence",  input.confidence.unwrap_or(0.8)))
-            .bind(("embedding",   input.embedding))
+            .bind(("new_id", new_id))
+            .bind(("old_id", old_id))
             .await?;
 
-        #[derive(Deserialize)]
-        struct Pair { old: Memory, new: Memory }
-        let pair: Option<Pair> = res.take(0)?;
-        let pair = pair.context("supersede returned nothing")?;
-        Ok((pair.old, pair.new))
+        Ok((old, new))
     }
 
     /// Soft forget (valid_time_end = now, superseded = true).
     pub async fn forget(&self, memory_id: &str) -> Result<()> {
-        let id = RecordId::from_table_key("memory", memory_id);
+        let id = RecordId::new("memory", memory_id);
         self.db
             .query(
                 r#"
@@ -235,7 +256,7 @@ impl Store {
 
     /// Hard purge — GDPR / legal only.
     pub async fn purge(&self, memory_id: &str) -> Result<()> {
-        let id = RecordId::from_table_key("memory", memory_id);
+        let id = RecordId::new("memory", memory_id);
         self.db.query("DELETE $id;").bind(("id", id)).await?;
         Ok(())
     }
@@ -271,9 +292,7 @@ impl Store {
             .bind(("min_confidence", q.min_confidence));
 
         if let Some(cats) = &q.categories {
-            query = query.bind(("categories",
-                cats.iter().map(|c| serde_json::to_value(c).unwrap()).collect::<Vec<_>>()
-            ));
+            query = query.bind(("categories", cats.clone()));
         }
         if let Some(va) = q.valid_at {
             query = query.bind(("valid_at", va));
@@ -308,9 +327,9 @@ impl Store {
             .bind(("limit",          q.top_k as i64))
             .await?;
 
-        #[derive(Deserialize)]
+        #[derive(surrealdb::types::SurrealValue)]
         struct Row {
-            #[serde(flatten)]
+            #[surreal(flatten)]
             memory: Memory,
             _score: f32,
         }
@@ -348,9 +367,9 @@ impl Store {
             .bind(("limit",          q.top_k as i64))
             .await?;
 
-        #[derive(Deserialize)]
+        #[derive(surrealdb::types::SurrealValue)]
         struct Row {
-            #[serde(flatten)]
+            #[surreal(flatten)]
             memory: Memory,
             _score: f32,
         }
@@ -364,7 +383,7 @@ impl Store {
         if ids.is_empty() { return Ok(vec![]); }
 
         let record_ids: Vec<RecordId> = ids.iter()
-            .map(|id| RecordId::from_table_key("memory", id.as_str()))
+            .map(|id| RecordId::new("memory", id.as_str()))
             .collect();
 
         let mut res = self.db
@@ -387,7 +406,7 @@ impl Store {
         tier: RetrievalTier,
     ) -> Result<RetrievalTrace> {
         let record_ids: Vec<RecordId> = result_ids.iter()
-            .map(|id| RecordId::from_table_key("memory", id.as_str()))
+            .map(|id| RecordId::new("memory", id.as_str()))
             .collect();
 
         let mut res = self.db
@@ -422,7 +441,7 @@ impl Store {
         useful: Option<bool>,
         correction: Option<bool>,
     ) -> Result<()> {
-        let id = RecordId::from_table_key("retrieval_trace", trace_id);
+        let id = RecordId::new("retrieval_trace", trace_id);
         self.db
             .query("UPDATE $id SET useful = $useful, correction = $correction;")
             .bind(("id",         id))
@@ -443,8 +462,8 @@ impl Store {
         kind: EdgeKind,
         weight: f64,
     ) -> Result<()> {
-        let src = RecordId::from_table_key("memory", source_id);
-        let tgt = RecordId::from_table_key("memory", target_id);
+        let src = RecordId::new("memory", source_id);
+        let tgt = RecordId::new("memory", target_id);
         self.db
             .query(
                 r#"
@@ -454,7 +473,7 @@ impl Store {
             )
             .bind(("src",    src))
             .bind(("tgt",    tgt))
-            .bind(("kind",   serde_json::to_value(&kind)?))
+            .bind(("kind",   kind))
             .bind(("weight", weight))
             .await?;
         Ok(())
@@ -465,7 +484,7 @@ impl Store {
         memory_id: &str,
         kinds: Option<Vec<EdgeKind>>,
     ) -> Result<Vec<Memory>> {
-        let id = RecordId::from_table_key("memory", memory_id);
+        let id = RecordId::new("memory", memory_id);
 
         let surql = if kinds.is_some() {
             "SELECT ->mem_edge[WHERE kind IN $kinds]->memory.* AS related FROM $id;"
@@ -476,12 +495,10 @@ impl Store {
         let mut query = self.db.query(surql).bind(("id", id));
 
         if let Some(ks) = kinds {
-            query = query.bind(("kinds",
-                ks.iter().map(|k| serde_json::to_value(k).unwrap()).collect::<Vec<_>>()
-            ));
+            query = query.bind(("kinds", ks.clone()));
         }
 
-        #[derive(Deserialize)]
+        #[derive(surrealdb::types::SurrealValue)]
         struct Row { related: Vec<Memory> }
         let mut res = query.await?;
         let rows: Vec<Row> = res.take(0)?;
@@ -517,7 +534,7 @@ impl Store {
             .bind(("action",      dt.action.clone()))
             .bind(("input",       dt.input.clone()))
             .bind(("output",      dt.output.clone()))
-            .bind(("status",      serde_json::to_value(&dt.status)?))
+            .bind(("status",      dt.status.clone()))
             .bind(("memory_refs", dt.memory_refs.clone()))
             .await?;
 
@@ -533,7 +550,7 @@ impl Store {
         let layer_str = serde_json::to_value(&wm.layer)?
             .as_str().unwrap_or("unknown").to_string();
         let wm_id = format!("{}_{}", wm.agent_id, layer_str);
-        let id = RecordId::from_table_key("working_memory", wm_id.as_str());
+        let id = RecordId::new("working_memory", wm_id.as_str());
 
         let mut res = self.db
             .query(
@@ -551,7 +568,7 @@ impl Store {
             )
             .bind(("id",              id))
             .bind(("agent_id",        wm.agent_id.clone()))
-            .bind(("layer",           serde_json::to_value(&wm.layer)?))
+            .bind(("layer",           wm.layer.clone()))
             .bind(("content",         wm.content.clone()))
             .bind(("source_memories", wm.source_memories.clone()))
             .bind(("valid_date",      wm.valid_date))
@@ -576,9 +593,7 @@ impl Store {
         let mut query = self.db.query(surql).bind(("agent_id", agent_id.to_string()));
 
         if let Some(ls) = layers {
-            query = query.bind(("layers",
-                ls.iter().map(|l| serde_json::to_value(l).unwrap()).collect::<Vec<_>>()
-            ));
+            query = query.bind(("layers", ls.clone()));
         }
 
         let mut res = query.await?;
@@ -621,9 +636,7 @@ impl Store {
             .bind(("pit",      point_in_time));
 
         if let Some(cats) = categories {
-            query = query.bind(("categories",
-                cats.iter().map(|c| serde_json::to_value(c).unwrap()).collect::<Vec<_>>()
-            ));
+            query = query.bind(("categories", cats.clone()));
         }
 
         let mut res = query.await?;
@@ -633,7 +646,7 @@ impl Store {
 
     /// Walk the supersession chain — history is always queryable.
     pub async fn supersession_lineage(&self, memory_id: &str) -> Result<Vec<Memory>> {
-        let id = RecordId::from_table_key("memory", memory_id);
+        let id = RecordId::new("memory", memory_id);
         let mut res = self.db
             .query(
                 r#"
@@ -695,12 +708,12 @@ impl Store {
     // Raw query (escape hatch)
     // -----------------------------------------------------------------------
 
-    pub async fn query_raw(&self, surql: &str) -> Result<surrealdb::Response> {
+    pub async fn query_raw(&self, surql: &str) -> Result<surrealdb::IndexedResults> {
         Ok(self.db.query(surql).await?)
     }
 
     pub async fn select_memory(&self, memory_id: &str) -> Result<Option<Memory>> {
-        let id = RecordId::from_table_key("memory", memory_id);
+        let id = RecordId::new("memory", memory_id);
         let memory: Option<Memory> = self.db.select(id).await?;
         Ok(memory)
     }
@@ -732,7 +745,3 @@ pub fn reciprocal_rank_fusion(
     ranked.into_iter().take(top_n).map(|(id, _)| id).collect()
 }
 
-// ---------------------------------------------------------------------------
-// Needed for serde Deserialize in query results
-// ---------------------------------------------------------------------------
-use serde::Deserialize;

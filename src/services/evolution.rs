@@ -6,7 +6,7 @@ use tracing::{debug, error, info};
 
 use crate::memory::{
     service::MemoryService,
-    types::{EdgeKind, EvolutionStatus, MemoryInput, RecallQuery, RetrievalTier},
+    types::{EdgeKind, EvolutionStatus, MemoryInput, RecallQuery, RecordIdExt, RetrievalTier},
 };
 
 // ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ impl EvolutionWorker {
                 None => continue,
             };
 
-            let new_mem_key = job.new_memory_id.key().to_string();
+            let new_mem_key = job.new_memory_id.key_str();
 
             let result: Result<()> = async {
                 // Fetch the new memory
@@ -104,7 +104,7 @@ impl EvolutionWorker {
                 let result = self.service.recall(q).await?;
                 let related: Vec<_> = result.memories.iter()
                     .filter(|m| {
-                        m.id.as_ref().map(|id| id.key().to_string())
+                        m.id.as_ref().map(|id| id.key_str())
                             != Some(new_mem_key.clone())
                     })
                     .cloned()
@@ -119,7 +119,7 @@ impl EvolutionWorker {
                 // inject via evolve_fn in extended builds.
                 for related_mem in &related {
                     if let Some(rid) = &related_mem.id {
-                        let rid_str = rid.key().to_string();
+                        let rid_str = rid.key_str();
                         self.service.store.query_raw(&format!(
                             "UPDATE memory:{} SET evolved_at = time::now();",
                             rid_str

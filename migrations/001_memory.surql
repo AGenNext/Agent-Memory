@@ -14,6 +14,11 @@
 --   uncertainty  explicit "we don't know yet" — emitted by reconciler
 -- ---------------------------------------------------------------------------
 
+-- Full-text analyzer used by the BM25 content index below.
+DEFINE ANALYZER IF NOT EXISTS ascii
+    TOKENIZERS blank, class
+    FILTERS lowercase, ascii;
+
 DEFINE TABLE memory SCHEMAFULL;
 
 DEFINE FIELD category         ON TABLE memory TYPE string
@@ -57,7 +62,7 @@ DEFINE FIELD tags             ON TABLE memory TYPE option<array<string>>;
 DEFINE FIELD evolved_at       ON TABLE memory TYPE option<datetime>;
 
 -- Vector embedding (1536-dim OpenAI / compatible)
-DEFINE FIELD embedding        ON TABLE memory FLEXIBLE TYPE option<array<float>>;
+DEFINE FIELD embedding        ON TABLE memory TYPE option<array<float>>;
 
 DEFINE FIELD created_at       ON TABLE memory TYPE datetime VALUE time::now();
 DEFINE FIELD updated_at       ON TABLE memory TYPE datetime VALUE time::now();
@@ -69,7 +74,7 @@ DEFINE INDEX memory_active_idx   ON TABLE memory FIELDS agent_id, superseded;
 DEFINE INDEX memory_embedding_idx ON TABLE memory FIELDS embedding
     HNSW DIMENSION 1536 DIST COSINE;
 DEFINE INDEX memory_content_fts  ON TABLE memory FIELDS content
-    SEARCH ANALYZER ascii BM25;
+    FULLTEXT ANALYZER ascii BM25;
 
 -- ---------------------------------------------------------------------------
 -- 2. MEMORY EDGES — graph relations
@@ -94,11 +99,11 @@ DEFINE TABLE retrieval_trace SCHEMAFULL;
 DEFINE FIELD agent_id        ON TABLE retrieval_trace TYPE string;
 DEFINE FIELD session_id      ON TABLE retrieval_trace TYPE option<string>;
 DEFINE FIELD query_text      ON TABLE retrieval_trace TYPE string;
-DEFINE FIELD query_embedding ON TABLE retrieval_trace FLEXIBLE TYPE option<array<float>>;
+DEFINE FIELD query_embedding ON TABLE retrieval_trace TYPE option<array<float>>;
 -- tier: 1=direct_lookup 2=response_reuse 3=hybrid 4=full_context
 DEFINE FIELD tier            ON TABLE retrieval_trace TYPE int DEFAULT 3;
 DEFINE FIELD result_ids      ON TABLE retrieval_trace TYPE array<record<memory>>;
-DEFINE FIELD result_scores   ON TABLE retrieval_trace FLEXIBLE TYPE option<array<float>>;
+DEFINE FIELD result_scores   ON TABLE retrieval_trace TYPE option<array<float>>;
 DEFINE FIELD useful          ON TABLE retrieval_trace TYPE option<bool>;
 DEFINE FIELD correction      ON TABLE retrieval_trace TYPE option<bool>;
 DEFINE FIELD created_at      ON TABLE retrieval_trace TYPE datetime VALUE time::now();
@@ -117,8 +122,8 @@ DEFINE FIELD step_id     ON TABLE decision_trace TYPE string;
 DEFINE FIELD agent_id    ON TABLE decision_trace TYPE string;
 DEFINE FIELD actor       ON TABLE decision_trace TYPE option<string>;
 DEFINE FIELD action      ON TABLE decision_trace TYPE string;
-DEFINE FIELD input       ON TABLE decision_trace FLEXIBLE TYPE object;
-DEFINE FIELD output      ON TABLE decision_trace FLEXIBLE TYPE object;
+DEFINE FIELD input       ON TABLE decision_trace TYPE object FLEXIBLE;
+DEFINE FIELD output      ON TABLE decision_trace TYPE object FLEXIBLE;
 DEFINE FIELD status      ON TABLE decision_trace TYPE string
     ASSERT $value IN ['pending','success','failed','rejected'];
 DEFINE FIELD memory_refs ON TABLE decision_trace TYPE option<array<record<memory>>>;

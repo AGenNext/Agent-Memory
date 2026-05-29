@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
-use surrealdb::RecordId;
+use surrealdb::types::{RecordId, SurrealValue};
 use tracing::{debug, info};
 
 use crate::memory::{
@@ -117,10 +117,10 @@ impl<'a> EscalatingRecall<'a> {
         let vec  = vec_res.unwrap_or_default();
 
         let bm25_pairs: Vec<(String, f32)> = bm25.iter()
-            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key().to_string(), *s)))
+            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key_str(), *s)))
             .collect();
         let vec_pairs: Vec<(String, f32)> = vec.iter()
-            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key().to_string(), *s)))
+            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key_str(), *s)))
             .collect();
 
         let merged = crate::memory::store::reciprocal_rank_fusion(
@@ -158,10 +158,10 @@ impl<'a> EscalatingRecall<'a> {
         let vec_s  = vec_s.unwrap_or_default();
 
         let bp: Vec<(String, f32)> = bm25_s.iter()
-            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key().to_string(), *s)))
+            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key_str(), *s)))
             .collect();
         let vp: Vec<(String, f32)> = vec_s.iter()
-            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key().to_string(), *s)))
+            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key_str(), *s)))
             .collect();
 
         let merged_s = crate::memory::store::reciprocal_rank_fusion(&bp, &vp, 60, self.q.top_k);
@@ -234,10 +234,10 @@ impl<'a> EscalatingRecall<'a> {
         let vec_w  = vec_w.unwrap_or_default();
 
         let bwp: Vec<(String, f32)> = bm25_w.iter()
-            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key().to_string(), *s)))
+            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key_str(), *s)))
             .collect();
         let vwp: Vec<(String, f32)> = vec_w.iter()
-            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key().to_string(), *s)))
+            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key_str(), *s)))
             .collect();
 
         let merged_w = crate::memory::store::reciprocal_rank_fusion(&bwp, &vwp, 60, self.q.top_k);
@@ -480,7 +480,7 @@ fn apply_decay_filter(
 
 fn id_strings(memories: &[Memory]) -> Vec<String> {
     memories.iter()
-        .filter_map(|m| m.id.as_ref().map(|id| id.key().to_string()))
+        .filter_map(|m| m.id.as_ref().map(|id| id.key_str()))
         .collect()
 }
 
@@ -521,7 +521,7 @@ pub struct ActiveEpisodeInput {
     pub gap_probe_id:     Option<RecordId>,
 }
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, surrealdb::types::SurrealValue)]
 pub struct SessionIndexRecord {
     pub session_id:   String,
     pub agent_id:     String,

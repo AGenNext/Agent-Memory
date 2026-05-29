@@ -82,7 +82,7 @@ impl MemoryService {
     async fn recall_direct(&self, q: RecallQuery) -> Result<RecallResult> {
         let memories = self.store.direct_lookup(&q).await?;
         let ids: Vec<String> = memories.iter()
-            .filter_map(|m| m.id.as_ref().map(|id| id.key().to_string()))
+            .filter_map(|m| m.id.as_ref().map(|id| id.key_str()))
             .collect();
 
         let trace = self.store.write_trace(&q, &ids, RetrievalTier::DirectLookup).await.ok();
@@ -96,7 +96,7 @@ impl MemoryService {
         // Reinforce retrieved memories — resets decay
         for m in &result.memories {
             if let Some(ref id) = m.id {
-                let _ = self.store.reinforce_memory(&id.key().to_string()).await;
+                let _ = self.store.reinforce_memory(&id.key_str()).await;
             }
         }
         Ok(result)
@@ -116,10 +116,10 @@ impl MemoryService {
 
         // Convert to (id, score) pairs for RRF
         let bm25_pairs: Vec<(String, f32)> = bm25.iter()
-            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key().to_string(), *s)))
+            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key_str(), *s)))
             .collect();
         let vec_pairs: Vec<(String, f32)> = vec.iter()
-            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key().to_string(), *s)))
+            .filter_map(|(m, s)| m.id.as_ref().map(|id| (id.key_str(), *s)))
             .collect();
 
         // RRF merge
@@ -129,7 +129,7 @@ impl MemoryService {
         let memories = self.store.fetch_by_ids(&merged_ids).await?;
 
         let ids: Vec<String> = memories.iter()
-            .filter_map(|m| m.id.as_ref().map(|id| id.key().to_string()))
+            .filter_map(|m| m.id.as_ref().map(|id| id.key_str()))
             .collect();
 
         let trace = self.store.write_trace(&q, &ids, q.tier).await.ok();
@@ -143,7 +143,7 @@ impl MemoryService {
         // Reinforce retrieved memories — resets decay
         for m in &result.memories {
             if let Some(ref id) = m.id {
-                let _ = self.store.reinforce_memory(&id.key().to_string()).await;
+                let _ = self.store.reinforce_memory(&id.key_str()).await;
             }
         }
         Ok(result)
@@ -236,7 +236,7 @@ impl MemoryService {
 
         for related_mem in related {
             let related_id = match &related_mem.id {
-                Some(id) => id.key().to_string(),
+                Some(id) => id.key_str(),
                 None => continue,
             };
 
@@ -269,6 +269,8 @@ impl MemoryService {
                     keywords: None,
                     tags: None,
                     embedding: None,
+                    epistemic_status: None,
+                    decay_lambda: None,
                 };
                 self.store.create_memory(uncertainty).await?;
                 warn!("reconciler: emitted uncertainty for {} vs {}", new_memory_id, related_id);

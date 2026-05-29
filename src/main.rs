@@ -15,6 +15,7 @@ use tracing::info;
 use tracing_subscriber::{fmt, EnvFilter};
 
 use memory::{service::MemoryService, store::Store};
+use memory::types::RecordIdExt;
 use mcp::server::serve_stdio;
 use services::{cortex::CortexSynthesiser, evolution::EvolutionWorker};
 
@@ -265,10 +266,12 @@ async fn run_self_test(service: MemoryService) -> Result<()> {
         source_trust: None,
         derived_from: None,
         embedding:   None,
+        epistemic_status: None,
+        decay_lambda: None,
     }).await?;
 
     let mem_id = mem.id.as_ref()
-        .map(|id| id.key().to_string())
+        .map(|id| id.key_str())
         .unwrap_or_default();
 
     info!("✓ created memory {}", mem_id);
@@ -295,7 +298,7 @@ async fn run_self_test(service: MemoryService) -> Result<()> {
         embedding:     None,
     }).await?;
 
-    let new_id = new.id.as_ref().map(|id| id.key().to_string()).unwrap_or_default();
+    let new_id = new.id.as_ref().map(|id| id.key_str()).unwrap_or_default();
     info!("✓ superseded {} → {}", mem_id, new_id);
 
     // 4. Verify old is superseded

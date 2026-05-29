@@ -1,12 +1,15 @@
 use anyhow::Result;
 use rmcp::{
-    ServerHandler, ServiceExt,
+    ErrorData, ServerHandler, ServiceExt,
+    handler::server::wrapper::Parameters,
     model::{
         CallToolResult, Content, Implementation, ProtocolVersion,
-        ServerCapabilities, ServerInfo, Tool,
+        ServerCapabilities, ServerInfo,
     },
     tool, tool_handler, tool_router,
 };
+use schemars::JsonSchema;
+use serde::Deserialize;
 use serde_json::{json, Value};
 use tracing::info;
 
@@ -16,6 +19,98 @@ use crate::memory::{
     service::MemoryService,
     types::*,
 };
+
+// ---------------------------------------------------------------------------
+// Tool parameter structs
+//
+// rmcp 1.7 derives each tool's JSON Schema from a single `Parameters<T>`
+// argument, rather than per-argument `#[tool(param)]` attributes.
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RememberParams {
+    /// Agent that owns the memory.
+    pub agent_id: String,
+    /// The memory content.
+    pub content: String,
+    /// Category: episodic|identity|knowledge|context|instruction|uncertainty.
+    pub category: String,
+    pub session_id: Option<String>,
+    pub importance: Option<f64>,
+    pub confidence: Option<f64>,
+    pub keywords: Option<Vec<String>>,
+    pub tags: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RecallParams {
+    pub agent_id: String,
+    pub query: String,
+    pub top_k: Option<i64>,
+    pub categories: Option<Vec<String>>,
+    pub session_id: Option<String>,
+    pub min_confidence: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct UpdateParams {
+    pub memory_id: String,
+    pub new_content: String,
+    pub confidence: Option<f64>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ForgetParams {
+    pub memory_id: String,
+    pub purge: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ReflectParams {
+    pub agent_id: String,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct InspectParams {
+    pub memory_id: Option<String>,
+    pub trace_id: Option<String>,
+    pub useful: Option<bool>,
+    pub correction: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct RecallOrGapParams {
+    pub agent_id: String,
+    pub query: String,
+    pub human_insistence: Option<String>,
+    pub top_k: Option<i64>,
+    pub categories: Option<Vec<String>>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ReplayEpisodeParams {
+    pub agent_id: String,
+    pub window_start: String,
+    pub window_end: String,
+    pub topic_hint: Option<String>,
+    pub gap_probe_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ConflictResolveParams {
+    pub agent_id: String,
+    pub session_id: Option<String>,
+    pub conflict_type: String,
+    pub human_statement: String,
+    pub prior_memory_id: Option<String>,
+    pub correct_interpretation: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct DecisionLogParams {
+    pub agent_id: String,
+    pub limit: Option<i64>,
+}
 
 // ---------------------------------------------------------------------------
 // AgentMemoryMcp — MCP server handler
@@ -46,26 +141,19 @@ impl AgentMemoryMcp {
     #[tool(description = "Store a new memory. Category: episodic|identity|knowledge|context|instruction|uncertainty")]
     async fn remember(
         &self,
-        #[tool(param)] agent_id: String,
-        #[tool(param)] content: String,
-        #[tool(param)] category: String,
-        #[tool(param)] session_id: Option<String>,
-        #[tool(param)] importance: Option<f64>,
-        #[tool(param)] confidence: Option<f64>,
-        #[tool(param)] keywords: Option<Vec<String>>,
-        #[tool(param)] tags: Option<Vec<String>>,
-    ) -> Result<CallToolResult, rmcp::Error> {
-        let cat = parse_category(&category);
+        Parameters(p): Parameters<RememberParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let cat = parse_category(&p.category);
 
         let input = MemoryInput {
-            agent_id,
-            content,
+            agent_id: p.agent_id,
+            content: p.content,
             category: cat,
-            session_id,
-            importance,
-            confidence,
-            keywords,
-            tags,
+            session_id: p.session_id,
+            importance: p.importance,
+            confidence: p.confidence,
+            keywords: p.keywords,
+            tags: p.tags,
             summary: None,
             scope: None,
             valid_time_start: None,
@@ -75,17 +163,19 @@ impl AgentMemoryMcp {
             source_trust: None,
             derived_from: None,
             embedding: None,
+            epistemic_status: None,
+            decay_lambda: None,
         };
 
         match self.service.remember(input).await {
             Ok(mem) => Ok(CallToolResult::success(vec![Content::text(
                 serde_json::to_string(&json!({
-                    "id": mem.id.as_ref().map(|id| id.to_string()),
+                    "id": mem.id.as_ref().map(|id| id.key_str()),
                     "category": serde_json::to_value(&mem.category).unwrap_or_default(),
                     "created_at": mem.created_at,
                 })).unwrap_or_default()
             )])),
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -93,13 +183,9 @@ impl AgentMemoryMcp {
     #[tool(description = "Retrieve memories using hybrid search. Returns top-k relevant memories with trace.")]
     async fn recall(
         &self,
-        #[tool(param)] agent_id: String,
-        #[tool(param)] query: String,
-        #[tool(param)] top_k: Option<i64>,
-        #[tool(param)] categories: Option<Vec<String>>,
-        #[tool(param)] session_id: Option<String>,
-        #[tool(param)] min_confidence: Option<f64>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<RecallParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let RecallParams { agent_id, query, top_k, categories, session_id, min_confidence } = p;
         let cats = categories.map(|cs| cs.iter().map(|c| parse_category(c)).collect());
 
         let q = RecallQuery {
@@ -116,7 +202,7 @@ impl AgentMemoryMcp {
         match self.service.recall(q).await {
             Ok(result) => {
                 let mems: Vec<Value> = result.memories.iter().map(|m| json!({
-                    "id":         m.id.as_ref().map(|id| id.to_string()),
+                    "id":         m.id.as_ref().map(|id| id.key_str()),
                     "category":   serde_json::to_value(&m.category).unwrap_or_default(),
                     "content":    m.content,
                     "confidence": m.confidence,
@@ -129,13 +215,13 @@ impl AgentMemoryMcp {
                 Ok(CallToolResult::success(vec![Content::text(
                     serde_json::to_string(&json!({
                         "memories":   mems,
-                        "trace_id":   result.trace_id.as_ref().map(|id| id.to_string()),
+                        "trace_id":   result.trace_id.as_ref().map(|id| id.key_str()),
                         "tier":       result.tier_used as i64,
                         "candidates": result.candidates,
                     })).unwrap_or_default()
                 )]))
             }
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -144,10 +230,9 @@ impl AgentMemoryMcp {
     #[tool(description = "Supersede a memory. Old record is preserved with valid_time_end set. New record created.")]
     async fn update(
         &self,
-        #[tool(param)] memory_id: String,
-        #[tool(param)] new_content: String,
-        #[tool(param)] confidence: Option<f64>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<UpdateParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let UpdateParams { memory_id, new_content, confidence } = p;
         let input = SupersedeInput {
             old_memory_id: memory_id,
             new_content,
@@ -160,12 +245,12 @@ impl AgentMemoryMcp {
         match self.service.update(input).await {
             Ok((old, new)) => Ok(CallToolResult::success(vec![Content::text(
                 serde_json::to_string(&json!({
-                    "superseded": old.id.as_ref().map(|id| id.to_string()),
-                    "new": new.id.as_ref().map(|id| id.to_string()),
+                    "superseded": old.id.as_ref().map(|id| id.key_str()),
+                    "new": new.id.as_ref().map(|id| id.key_str()),
                     "superseded_at": old.superseded_at,
                 })).unwrap_or_default()
             )])),
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -173,9 +258,9 @@ impl AgentMemoryMcp {
     #[tool(description = "Forget a memory (soft). Sets valid_time_end. History preserved. Use purge=true only for GDPR.")]
     async fn forget(
         &self,
-        #[tool(param)] memory_id: String,
-        #[tool(param)] purge: Option<bool>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<ForgetParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let ForgetParams { memory_id, purge } = p;
         let result = if purge.unwrap_or(false) {
             self.service.purge(&memory_id).await
         } else {
@@ -186,7 +271,7 @@ impl AgentMemoryMcp {
             Ok(()) => Ok(CallToolResult::success(vec![Content::text(
                 json!({"forgotten": memory_id, "purged": purge.unwrap_or(false)}).to_string()
             )])),
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -195,8 +280,9 @@ impl AgentMemoryMcp {
     #[tool(description = "Reflect: return assembled Cortex working memory layers for prompt injection.")]
     async fn reflect(
         &self,
-        #[tool(param)] agent_id: String,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<ReflectParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let ReflectParams { agent_id } = p;
         match self.service.context(&agent_id).await {
             Ok(layers) => {
                 let result: Vec<Value> = layers.iter().map(|wm| json!({
@@ -210,7 +296,7 @@ impl AgentMemoryMcp {
                     serde_json::to_string(&result).unwrap_or_default()
                 )]))
             }
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -218,18 +304,16 @@ impl AgentMemoryMcp {
     #[tool(description = "Inspect memory history (supersession lineage) or submit trace feedback.")]
     async fn inspect(
         &self,
-        #[tool(param)] memory_id: Option<String>,
-        #[tool(param)] trace_id: Option<String>,
-        #[tool(param)] useful: Option<bool>,
-        #[tool(param)] correction: Option<bool>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<InspectParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let InspectParams { memory_id, trace_id, useful, correction } = p;
         // Trace feedback
         if let Some(tid) = trace_id {
             match self.service.feedback(&tid, useful, correction).await {
                 Ok(()) => return Ok(CallToolResult::success(vec![Content::text(
                     json!({"feedback_recorded": tid}).to_string()
                 )])),
-                Err(e) => return Err(rmcp::Error::internal_error(e.to_string(), None)),
+                Err(e) => return Err(ErrorData::internal_error(e.to_string(), None)),
             }
         }
 
@@ -238,11 +322,11 @@ impl AgentMemoryMcp {
             match self.service.history(&mid).await {
                 Ok(chain) => {
                     let result: Vec<Value> = chain.iter().map(|m| json!({
-                        "id":           m.id.as_ref().map(|id| id.to_string()),
+                        "id":           m.id.as_ref().map(|id| id.key_str()),
                         "content":      m.content,
                         "superseded":   m.superseded,
                         "superseded_at": m.superseded_at,
-                        "superseded_by": m.superseded_by.as_ref().map(|id| id.to_string()),
+                        "superseded_by": m.superseded_by.as_ref().map(|id| id.key_str()),
                         "known_time":   m.known_time,
                     })).collect();
 
@@ -250,11 +334,11 @@ impl AgentMemoryMcp {
                         serde_json::to_string(&result).unwrap_or_default()
                     )]));
                 }
-                Err(e) => return Err(rmcp::Error::internal_error(e.to_string(), None)),
+                Err(e) => return Err(ErrorData::internal_error(e.to_string(), None)),
             }
         }
 
-        Err(rmcp::Error::invalid_params("provide memory_id or trace_id", None))
+        Err(ErrorData::invalid_params("provide memory_id or trace_id", None))
     }
     /// Try to recall something, trying all tiers before giving up.
     /// If nothing found, returns a gap probe with a suggested prompt for the human.
@@ -262,12 +346,9 @@ impl AgentMemoryMcp {
     #[tool(description = "Recall with full escalation. Returns found memories OR a gap probe asking the human for a time anchor.")]
     async fn recall_or_gap(
         &self,
-        #[tool(param)] agent_id: String,
-        #[tool(param)] query: String,
-        #[tool(param)] human_insistence: Option<String>,
-        #[tool(param)] top_k: Option<i64>,
-        #[tool(param)] categories: Option<Vec<String>>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<RecallOrGapParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let RecallOrGapParams { agent_id, query, human_insistence, top_k, categories } = p;
         let cats = categories.map(|cs| cs.iter().map(|c| parse_category(c)).collect());
         let q = RecallQuery {
             agent_id,
@@ -281,7 +362,7 @@ impl AgentMemoryMcp {
         match self.service.recall_or_gap(q, human_insistence).await {
             Ok(RecallOutcome::Found(result)) => {
                 let mems: Vec<Value> = result.memories.iter().map(|m| json!({
-                    "id":         m.id.as_ref().map(|id| id.to_string()),
+                    "id":         m.id.as_ref().map(|id| id.key_str()),
                     "category":   serde_json::to_value(&m.category).unwrap_or_default(),
                     "content":    m.content,
                     "confidence": m.confidence,
@@ -303,7 +384,7 @@ impl AgentMemoryMcp {
                 Ok(CallToolResult::success(vec![Content::text(
                     json!({
                         "outcome": "gap",
-                        "gap_probe_id": gap.id.as_ref().map(|id| id.to_string()),
+                        "gap_probe_id": gap.id.as_ref().map(|id| id.key_str()),
                         "tiers_tried": gap.tiers_tried,
                         "searched_superseded": gap.searched_superseded,
                         "searched_temporal": gap.searched_temporal,
@@ -311,7 +392,7 @@ impl AgentMemoryMcp {
                     }).to_string()
                 )]))
             }
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -321,24 +402,21 @@ impl AgentMemoryMcp {
     #[tool(description = "Replay a past session. Human gave a time anchor. Loads the complete episode into active memory.")]
     async fn replay_episode(
         &self,
-        #[tool(param)] agent_id: String,
-        #[tool(param)] window_start: String,
-        #[tool(param)] window_end: String,
-        #[tool(param)] topic_hint: Option<String>,
-        #[tool(param)] gap_probe_id: Option<String>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<ReplayEpisodeParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let ReplayEpisodeParams { agent_id, window_start, window_end, topic_hint, gap_probe_id } = p;
         use chrono::DateTime;
 
         let start = DateTime::parse_from_rfc3339(&window_start)
             .map(|d| d.with_timezone(&chrono::Utc))
-            .map_err(|e| rmcp::Error::invalid_params(format!("window_start: {}", e), None))?;
+            .map_err(|e| ErrorData::invalid_params(format!("window_start: {}", e), None))?;
 
         let end = DateTime::parse_from_rfc3339(&window_end)
             .map(|d| d.with_timezone(&chrono::Utc))
-            .map_err(|e| rmcp::Error::invalid_params(format!("window_end: {}", e), None))?;
+            .map_err(|e| ErrorData::invalid_params(format!("window_end: {}", e), None))?;
 
         let gp_id = gap_probe_id.map(|id| {
-            surrealdb::RecordId::from_table_key("gap_probe", id.as_str())
+            surrealdb::types::RecordId::new("gap_probe", id.as_str())
         });
 
         match self.service.replay_by_window(&agent_id, start, end, topic_hint, gp_id).await {
@@ -359,7 +437,7 @@ impl AgentMemoryMcp {
                     "message": "No sessions found in the provided time window. The human may have more specific context.",
                 }).to_string()
             )])),
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -375,18 +453,17 @@ impl AgentMemoryMcp {
     #[tool(description = "Resolve conflict. Types: misinterpretation | agent_stands_firm | factual_contradiction. Returns agent_response and halt_reasoning flag.")]
     async fn conflict_resolve(
         &self,
-        #[tool(param)] agent_id: String,
-        #[tool(param)] session_id: Option<String>,
-        #[tool(param)] conflict_type: String,
-        #[tool(param)] human_statement: String,
-        #[tool(param)] prior_memory_id: Option<String>,
-        #[tool(param)] correct_interpretation: Option<String>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<ConflictResolveParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let ConflictResolveParams {
+            agent_id, session_id, conflict_type, human_statement,
+            prior_memory_id, correct_interpretation,
+        } = p;
         let ct = match conflict_type.as_str() {
             "misinterpretation"    => ConflictType::Misinterpretation,
             "agent_stands_firm"    => ConflictType::AgentStandsFirm,
             "factual_contradiction" => ConflictType::FactualContradiction,
-            other => return Err(rmcp::Error::invalid_params(
+            other => return Err(ErrorData::invalid_params(
                 format!("unknown conflict_type: {}", other), None
             )),
         };
@@ -412,7 +489,7 @@ impl AgentMemoryMcp {
                     "prior_known_time":      trace.prior_known_time,
                 })).unwrap_or_default()
             )])),
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -421,13 +498,13 @@ impl AgentMemoryMcp {
     #[tool(description = "Show decision log. Returns recent conflict resolutions with reasoning, prior records, and what the agent said.")]
     async fn decision_log(
         &self,
-        #[tool(param)] agent_id: String,
-        #[tool(param)] limit: Option<i64>,
-    ) -> Result<CallToolResult, rmcp::Error> {
+        Parameters(p): Parameters<DecisionLogParams>,
+    ) -> Result<CallToolResult, ErrorData> {
+        let DecisionLogParams { agent_id, limit } = p;
         match self.service.conflict_history(&agent_id, limit.unwrap_or(20) as usize).await {
             Ok(rows) => {
                 let entries: Vec<Value> = rows.iter().map(|r| json!({
-                    "id":                   r.id.as_ref().map(|id| id.to_string()),
+                    "id":                   r.id.as_ref().map(|id| id.key_str()),
                     "conflict_type":        r.conflict_type,
                     "prior_content":        r.prior_content,
                     "prior_verbatim":       r.prior_verbatim,
@@ -447,7 +524,7 @@ impl AgentMemoryMcp {
                     })).unwrap_or_default()
                 )]))
             }
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+            Err(e) => Err(ErrorData::internal_error(e.to_string(), None)),
         }
     }
 
@@ -456,22 +533,19 @@ impl AgentMemoryMcp {
 #[tool_handler]
 impl ServerHandler for AgentMemoryMcp {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::V_2024_11_05,
-            capabilities: ServerCapabilities::builder()
-                .enable_tools()
-                .build(),
-            server_info: Implementation {
-                name:    "agent-memory".to_string(),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-            },
-            instructions: Some(
-                "Agent-Memory: provenance-first, tri-temporal memory layer. \
-                 Ten tools: remember, recall, recall_or_gap, update, forget, reflect, inspect, replay_episode, conflict_resolve, decision_log. \
-                 Use recall_or_gap when human insists on something not found. Use replay_episode with a time anchor to load full past session."
-                    .to_string(),
-            ),
-        }
+        // `ServerInfo`/`Implementation` are `#[non_exhaustive]`, so build via
+        // their constructors and assign the fields we care about.
+        let mut info = ServerInfo::default();
+        info.protocol_version = ProtocolVersion::V_2024_11_05;
+        info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        info.server_info = Implementation::new("agent-memory", env!("CARGO_PKG_VERSION"));
+        info.instructions = Some(
+            "Agent-Memory: provenance-first, tri-temporal memory layer. \
+             Ten tools: remember, recall, recall_or_gap, update, forget, reflect, inspect, replay_episode, conflict_resolve, decision_log. \
+             Use recall_or_gap when human insists on something not found. Use replay_episode with a time anchor to load full past session."
+                .to_string(),
+        );
+        info
     }
 }
 

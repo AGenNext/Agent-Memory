@@ -51,6 +51,7 @@ pub use memory::types::{
     MemoryScope,
     RecallQuery,
     RecallResult,
+    RecordIdExt,
     RetrievalTier,
     SourceKind,
     SupersedeInput,
@@ -152,7 +153,7 @@ impl AgentMemory {
         &self,
         agent_id:     &str,
         session_id:   &str,
-        gap_probe_id: Option<surrealdb::RecordId>,
+        gap_probe_id: Option<surrealdb::types::RecordId>,
     ) -> Result<ReplayedEpisode> {
         self.service.replay_session(agent_id, session_id, gap_probe_id).await
     }
@@ -164,7 +165,7 @@ impl AgentMemory {
         window_start: chrono::DateTime<chrono::Utc>,
         window_end:   chrono::DateTime<chrono::Utc>,
         topic_hint:   Option<String>,
-        gap_probe_id: Option<surrealdb::RecordId>,
+        gap_probe_id: Option<surrealdb::types::RecordId>,
     ) -> Result<Option<ReplayedEpisode>> {
         self.service.replay_by_window(
             agent_id, window_start, window_end, topic_hint, gap_probe_id
