@@ -39,6 +39,33 @@ struct Cli {
     #[arg(long)]
     print_default_config: bool,
 
+    /// Server mode.
+    ///   mcp  → MCP server on stdio only (default)
+    ///   http → SurrealDB HTTP endpoint only (for Python/TS/Go SDKs)
+    ///   both → MCP on stdio + SurrealDB HTTP endpoint
+    #[arg(long, env = "AGENT_MEMORY_MODE", default_value = "mcp")]
+    mode: String,
+
+    /// Port for SurrealDB HTTP endpoint (used with --mode http or both).
+    #[arg(long, env = "AGENT_MEMORY_DB_PORT", default_value = "8000")]
+    db_port: u16,
+
+    /// Bind address for SurrealDB HTTP endpoint.
+    #[arg(long, env = "AGENT_MEMORY_DB_BIND", default_value = "0.0.0.0")]
+    db_bind: String,
+
+    /// SurrealDB server username (for HTTP mode).
+    #[arg(long, env = "AGENT_MEMORY_DB_USER", default_value = "root")]
+    db_user: String,
+
+    /// SurrealDB server password (for HTTP mode).
+    #[arg(long, env = "AGENT_MEMORY_DB_PASS", default_value = "root")]
+    db_pass: String,
+
+    /// Path to surreal binary (optional — searches PATH by default).
+    #[arg(long, env = "SURREAL_BIN")]
+    surreal_bin: Option<std::path::PathBuf>,
+
     /// Log level (trace, debug, info, warn, error).
     #[arg(long, env = "RUST_LOG", default_value = "info")]
     log_level: String,
@@ -124,6 +151,35 @@ async fn main() -> Result<()> {
         }
 
         Cmd::Mcp => {
+            // Start SurrealDB HTTP server if mode includes http
+            let _surreal_server = if cli.mode == "http" || cli.mode == "both" {
+                let bind = format!("{}:{}", cli.db_bind, cli.db_port);
+                let srv_cfg = server::SurrealServerConfig {
+                    surreal_bin:         cli.surreal_bin.clone(),
+                    bind_addr:           bind.clone(),
+                    data_dir:            cli.data_dir.clone().unwrap_or_else(|| std::path::PathBuf::from("./data")),
+                    ns:                  "agnxxt".to_string(),
+                    db:                  "agent_memory".to_string(),
+                    user:                cli.db_user.clone(),
+                    pass:                cli.db_pass.clone(),
+                    allow_guests:        false,
+                    health_timeout_secs: 30,
+                };
+                let srv = server::SurrealServer::start(srv_cfg).await?;
+                server::print_connection_info(&bind, "agnxxt", "agent_memory");
+                Some(srv)
+            } else {
+                None
+            };
+
+            // If mode is http-only, just keep the server alive
+            if cli.mode == "http" {
+                info!("running in HTTP-only mode — MCP server not started");
+                tokio::signal::ctrl_c().await.ok();
+                info!("shutting down");
+                return Ok(());
+            }
+
             // Start background workers
             let evo_service = service.clone();
             let evo_agents  = cli.agents.clone();
