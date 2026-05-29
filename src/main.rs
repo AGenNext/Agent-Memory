@@ -252,6 +252,39 @@ async fn run_self_test(service: MemoryService) -> Result<()> {
     assert!(!ctx.is_empty(), "context should have at least 1 layer");
     info!("✓ cortex context: {} layers", ctx.len());
 
+    // 9. Conflict: misinterpretation
+    let conflict_result = service.resolve_conflict(
+        crate::memory::conflict::ConflictInput {
+            agent_id:              "test-agent".to_string(),
+            session_id:            None,
+            conflict_type:         crate::memory::conflict::ConflictType::Misinterpretation,
+            human_statement:       "No, I meant technically precise, not short".to_string(),
+            prior_memory_id:       None, // no prior in this test
+            correct_interpretation: Some("user wants technically precise responses".to_string()),
+        }
+    ).await?;
+    assert!(!conflict_result.halt_reasoning, "misinterpretation should not halt");
+    info!("✓ conflict misinterpretation: {}", conflict_result.agent_response);
+
+    // 10. Conflict: factual contradiction — halt_reasoning must be true
+    let fact_conflict = service.resolve_conflict(
+        crate::memory::conflict::ConflictInput {
+            agent_id:              "test-agent".to_string(),
+            session_id:            None,
+            conflict_type:         crate::memory::conflict::ConflictType::FactualContradiction,
+            human_statement:       "I said the budget was $50,000".to_string(),
+            prior_memory_id:       None,
+            correct_interpretation: None,
+        }
+    ).await?;
+    assert!(fact_conflict.halt_reasoning, "factual contradiction should halt reasoning");
+    info!("✓ conflict factual_contradiction halts: {}", fact_conflict.agent_response);
+
+    // 11. Decision log
+    let log = service.conflict_history("test-agent", 10).await?;
+    assert!(log.len() >= 2, "should have at least 2 conflict trace entries");
+    info!("✓ decision log: {} entries", log.len());
+
     info!("=== all tests passed ===");
     Ok(())
 }
