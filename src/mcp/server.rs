@@ -1,0 +1,303 @@
+use anyhow::Result;
+use rmcp::{
+    ServerHandler, ServiceExt,
+    model::{
+        CallToolResult, Content, Implementation, ProtocolVersion,
+        ServerCapabilities, ServerInfo, Tool,
+    },
+    tool, tool_handler, tool_router,
+};
+use serde_json::{json, Value};
+use tracing::info;
+
+use crate::memory::{
+    service::MemoryService,
+    types::*,
+};
+
+// ---------------------------------------------------------------------------
+// AgentMemoryMcp — MCP server handler
+//
+// Six tools (Spectron surface):
+//   remember  → create memory
+//   recall    → hybrid retrieval
+//   update    → supersede-not-overwrite
+//   forget    → soft forget
+//   reflect   → on-demand synthesis (stub — caller injects LLM)
+//   inspect   → retrieval trace + supersession lineage
+// ---------------------------------------------------------------------------
+
+#[derive(Clone)]
+pub struct AgentMemoryMcp {
+    service: MemoryService,
+}
+
+impl AgentMemoryMcp {
+    pub fn new(service: MemoryService) -> Self {
+        Self { service }
+    }
+}
+
+#[tool_router]
+impl AgentMemoryMcp {
+    /// Store a new memory for an agent.
+    #[tool(description = "Store a new memory. Category: episodic|identity|knowledge|context|instruction|uncertainty")]
+    async fn remember(
+        &self,
+        #[tool(param)] agent_id: String,
+        #[tool(param)] content: String,
+        #[tool(param)] category: String,
+        #[tool(param)] session_id: Option<String>,
+        #[tool(param)] importance: Option<f64>,
+        #[tool(param)] confidence: Option<f64>,
+        #[tool(param)] keywords: Option<Vec<String>>,
+        #[tool(param)] tags: Option<Vec<String>>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let cat = parse_category(&category);
+
+        let input = MemoryInput {
+            agent_id,
+            content,
+            category: cat,
+            session_id,
+            importance,
+            confidence,
+            keywords,
+            tags,
+            summary: None,
+            scope: None,
+            valid_time_start: None,
+            valid_time_end: None,
+            source_kind: None,
+            source_ref: None,
+            source_trust: None,
+            derived_from: None,
+            embedding: None,
+        };
+
+        match self.service.remember(input).await {
+            Ok(mem) => Ok(CallToolResult::success(vec![Content::text(
+                serde_json::to_string(&json!({
+                    "id": mem.id.as_ref().map(|id| id.to_string()),
+                    "category": serde_json::to_value(&mem.category).unwrap_or_default(),
+                    "created_at": mem.created_at,
+                })).unwrap_or_default()
+            )])),
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
+    /// Recall memories using hybrid retrieval (BM25 + vector + RRF).
+    #[tool(description = "Retrieve memories using hybrid search. Returns top-k relevant memories with trace.")]
+    async fn recall(
+        &self,
+        #[tool(param)] agent_id: String,
+        #[tool(param)] query: String,
+        #[tool(param)] top_k: Option<i64>,
+        #[tool(param)] categories: Option<Vec<String>>,
+        #[tool(param)] session_id: Option<String>,
+        #[tool(param)] min_confidence: Option<f64>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let cats = categories.map(|cs| cs.iter().map(|c| parse_category(c)).collect());
+
+        let q = RecallQuery {
+            agent_id,
+            query_text: query,
+            top_k: top_k.unwrap_or(10) as usize,
+            categories: cats,
+            session_id,
+            min_confidence: min_confidence.unwrap_or(0.0),
+            tier: RetrievalTier::Hybrid,
+            ..Default::default()
+        };
+
+        match self.service.recall(q).await {
+            Ok(result) => {
+                let mems: Vec<Value> = result.memories.iter().map(|m| json!({
+                    "id":         m.id.as_ref().map(|id| id.to_string()),
+                    "category":   serde_json::to_value(&m.category).unwrap_or_default(),
+                    "content":    m.content,
+                    "confidence": m.confidence,
+                    "importance": m.importance,
+                    "known_time": m.known_time,
+                    "source_kind": serde_json::to_value(&m.source_kind).unwrap_or_default(),
+                    "superseded": m.superseded,
+                })).collect();
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string(&json!({
+                        "memories":   mems,
+                        "trace_id":   result.trace_id.as_ref().map(|id| id.to_string()),
+                        "tier":       result.tier_used as i64,
+                        "candidates": result.candidates,
+                    })).unwrap_or_default()
+                )]))
+            }
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
+    /// Update a memory using supersede-not-overwrite (Spectron model).
+    /// Old memory is preserved with valid_time_end set. New memory created with derived_from.
+    #[tool(description = "Supersede a memory. Old record is preserved with valid_time_end set. New record created.")]
+    async fn update(
+        &self,
+        #[tool(param)] memory_id: String,
+        #[tool(param)] new_content: String,
+        #[tool(param)] confidence: Option<f64>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let input = SupersedeInput {
+            old_memory_id: memory_id,
+            new_content,
+            confidence,
+            source_kind: None,
+            source_ref: None,
+            embedding: None,
+        };
+
+        match self.service.update(input).await {
+            Ok((old, new)) => Ok(CallToolResult::success(vec![Content::text(
+                serde_json::to_string(&json!({
+                    "superseded": old.id.as_ref().map(|id| id.to_string()),
+                    "new": new.id.as_ref().map(|id| id.to_string()),
+                    "superseded_at": old.superseded_at,
+                })).unwrap_or_default()
+            )])),
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
+    /// Soft-forget a memory. Sets valid_time_end = now. History remains queryable.
+    #[tool(description = "Forget a memory (soft). Sets valid_time_end. History preserved. Use purge=true only for GDPR.")]
+    async fn forget(
+        &self,
+        #[tool(param)] memory_id: String,
+        #[tool(param)] purge: Option<bool>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let result = if purge.unwrap_or(false) {
+            self.service.purge(&memory_id).await
+        } else {
+            self.service.forget(&memory_id).await
+        };
+
+        match result {
+            Ok(()) => Ok(CallToolResult::success(vec![Content::text(
+                json!({"forgotten": memory_id, "purged": purge.unwrap_or(false)}).to_string()
+            )])),
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
+    /// On-demand synthesis: reflect over retrieved context.
+    /// Returns assembled working memory layers for the agent.
+    #[tool(description = "Reflect: return assembled Cortex working memory layers for prompt injection.")]
+    async fn reflect(
+        &self,
+        #[tool(param)] agent_id: String,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        match self.service.context(&agent_id).await {
+            Ok(layers) => {
+                let result: Vec<Value> = layers.iter().map(|wm| json!({
+                    "layer":       serde_json::to_value(&wm.layer).unwrap_or_default(),
+                    "content":     wm.content,
+                    "token_count": wm.token_count,
+                    "updated_at":  wm.updated_at,
+                })).collect();
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    serde_json::to_string(&result).unwrap_or_default()
+                )]))
+            }
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
+    /// Inspect: retrieval trace feedback or supersession lineage.
+    #[tool(description = "Inspect memory history (supersession lineage) or submit trace feedback.")]
+    async fn inspect(
+        &self,
+        #[tool(param)] memory_id: Option<String>,
+        #[tool(param)] trace_id: Option<String>,
+        #[tool(param)] useful: Option<bool>,
+        #[tool(param)] correction: Option<bool>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        // Trace feedback
+        if let Some(tid) = trace_id {
+            match self.service.feedback(&tid, useful, correction).await {
+                Ok(()) => return Ok(CallToolResult::success(vec![Content::text(
+                    json!({"feedback_recorded": tid}).to_string()
+                )])),
+                Err(e) => return Err(rmcp::Error::internal_error(e.to_string(), None)),
+            }
+        }
+
+        // Supersession lineage
+        if let Some(mid) = memory_id {
+            match self.service.history(&mid).await {
+                Ok(chain) => {
+                    let result: Vec<Value> = chain.iter().map(|m| json!({
+                        "id":           m.id.as_ref().map(|id| id.to_string()),
+                        "content":      m.content,
+                        "superseded":   m.superseded,
+                        "superseded_at": m.superseded_at,
+                        "superseded_by": m.superseded_by.as_ref().map(|id| id.to_string()),
+                        "known_time":   m.known_time,
+                    })).collect();
+
+                    return Ok(CallToolResult::success(vec![Content::text(
+                        serde_json::to_string(&result).unwrap_or_default()
+                    )]));
+                }
+                Err(e) => return Err(rmcp::Error::internal_error(e.to_string(), None)),
+            }
+        }
+
+        Err(rmcp::Error::invalid_params("provide memory_id or trace_id", None))
+    }
+}
+
+#[tool_handler]
+impl ServerHandler for AgentMemoryMcp {
+    fn get_info(&self) -> ServerInfo {
+        ServerInfo {
+            protocol_version: ProtocolVersion::V_2024_11_05,
+            capabilities: ServerCapabilities::builder()
+                .enable_tools()
+                .build(),
+            server_info: Implementation {
+                name:    "agent-memory".to_string(),
+                version: env!("CARGO_PKG_VERSION").to_string(),
+            },
+            instructions: Some(
+                "Agent-Memory: provenance-first, tri-temporal memory layer. \
+                 Six tools: remember, recall, update, forget, reflect, inspect."
+                    .to_string(),
+            ),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Helper
+// ---------------------------------------------------------------------------
+
+fn parse_category(s: &str) -> MemoryCategory {
+    match s {
+        "episodic"     => MemoryCategory::Episodic,
+        "identity"     => MemoryCategory::Identity,
+        "knowledge"    => MemoryCategory::Knowledge,
+        "context"      => MemoryCategory::Context,
+        "instruction"  => MemoryCategory::Instruction,
+        "uncertainty"  => MemoryCategory::Uncertainty,
+        _              => MemoryCategory::Knowledge,
+    }
+}
+
+/// Start the MCP server on stdio (Claude Desktop / Claude Code compatible).
+pub async fn serve_stdio(service: MemoryService) -> Result<()> {
+    info!("agent-memory MCP server starting on stdio");
+    let handler = AgentMemoryMcp::new(service);
+    let server = handler.serve(rmcp::transport::stdio()).await?;
+    server.waiting().await?;
+    Ok(())
+}
