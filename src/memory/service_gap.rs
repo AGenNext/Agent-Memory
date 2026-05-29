@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use tracing::{debug, info};
 
 use crate::memory::{
+    conflict::{ConflictInput, ConflictResolver, ConflictTrace},
     gap::{EpisodicReplay, EscalatingRecall, RecallOutcome, ReplayedEpisode},
     service::MemoryService,
     types::{
@@ -166,6 +167,22 @@ impl MemoryService {
     // -----------------------------------------------------------------------
     // Clear active episode when session ends
     // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Conflict resolution
+    // -----------------------------------------------------------------------
+
+    pub async fn resolve_conflict(&self, input: ConflictInput) -> Result<ConflictTrace> {
+        ConflictResolver::new(&self.store).resolve(input).await
+    }
+
+    pub async fn conflict_history(
+        &self,
+        agent_id: &str,
+        limit: usize,
+    ) -> Result<Vec<crate::memory::conflict::ConflictTraceRow>> {
+        self.store.conflict_history(agent_id, limit).await
+    }
 
     pub async fn end_session(&self, agent_id: &str) -> Result<()> {
         self.store.clear_active_episode(agent_id).await?;
