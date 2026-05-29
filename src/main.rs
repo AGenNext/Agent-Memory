@@ -1,6 +1,8 @@
+mod analytics;
 mod config;
 mod memory;
 mod mcp;
+mod server;
 mod services;
 
 use std::path::PathBuf;
