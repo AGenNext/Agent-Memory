@@ -15,12 +15,13 @@ const CONFIDENCE_FLOOR: f64 = 0.4;
 
 #[derive(Clone)]
 pub struct MemoryService {
-    pub store: Store,
+    pub store:  Store,
+    pub config: crate::config::Config,
 }
 
 impl MemoryService {
-    pub fn new(store: Store) -> Self {
-        Self { store }
+    pub fn new(store: Store, config: crate::config::Config) -> Self {
+        Self { store, config }
     }
 
     // -----------------------------------------------------------------------
@@ -28,6 +29,17 @@ impl MemoryService {
     // -----------------------------------------------------------------------
 
     pub async fn remember(&self, input: MemoryInput) -> Result<Memory> {
+        // Compute config-driven decay lambda before storing
+        let lambda = self.config.lambda_for_category(
+            &input.category,
+            &input.epistemic_status.as_ref().unwrap_or(
+                &crate::memory::types::EpistemicStatus::Belief
+            ),
+        );
+        let input = crate::memory::types::MemoryInput {
+            decay_lambda: Some(lambda),
+            ..input
+        };
         let mem = self.store.create_memory(input).await?;
         debug!("created memory {:?} ({})", mem.id, serde_json::to_value(&mem.category).unwrap_or_default());
         Ok(mem)
