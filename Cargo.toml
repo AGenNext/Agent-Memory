@@ -36,6 +36,9 @@ tracing-subscriber  = { version = "0.3.23", features = ["env-filter", "json"] }
 uuid        = { version = "1.23.2", features = ["v4", "serde"] }
 chrono      = { version = "0.4.44", features = ["serde"] }
 
+# HTTP health check (for SurrealDB server mode)
+reqwest     = { version = "0.13.4", features = ["json"], default-features = false }
+
 # CLI / config
 clap        = { version = "4", features = ["derive", "env"] }
 dirs        = { version = "6" }
