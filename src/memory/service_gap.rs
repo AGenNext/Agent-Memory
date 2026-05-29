@@ -30,9 +30,15 @@ impl MemoryService {
         q:                RecallQuery,
         human_insistence: Option<String>,
     ) -> Result<RecallOutcome> {
-        EscalatingRecall::new(&self.store, &q, human_insistence)
-            .run()
-            .await
+        EscalatingRecall::new(
+            &self.store,
+            &q,
+            human_insistence,
+            self.config.retrieval_threshold(),
+            self.config.escalating_threshold(),
+        )
+        .run()
+        .await
     }
 
     // -----------------------------------------------------------------------
