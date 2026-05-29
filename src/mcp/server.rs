@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 use tracing::info;
 
 use crate::memory::{
+    gap::RecallOutcome,
     service::MemoryService,
     types::*,
 };
@@ -254,6 +255,126 @@ impl AgentMemoryMcp {
 
         Err(rmcp::Error::invalid_params("provide memory_id or trace_id", None))
     }
+    /// Try to recall something, trying all tiers before giving up.
+    /// If nothing found, returns a gap probe with a suggested prompt for the human.
+    /// Pass human_insistence="I told you about X last week" for a better gap message.
+    #[tool(description = "Recall with full escalation. Returns found memories OR a gap probe asking the human for a time anchor.")]
+    async fn recall_or_gap(
+        &self,
+        #[tool(param)] agent_id: String,
+        #[tool(param)] query: String,
+        #[tool(param)] human_insistence: Option<String>,
+        #[tool(param)] top_k: Option<i64>,
+        #[tool(param)] categories: Option<Vec<String>>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        let cats = categories.map(|cs| cs.iter().map(|c| parse_category(c)).collect());
+        let q = RecallQuery {
+            agent_id,
+            query_text: query,
+            top_k: top_k.unwrap_or(10) as usize,
+            categories: cats,
+            tier: RetrievalTier::Hybrid,
+            ..Default::default()
+        };
+
+        match self.service.recall_or_gap(q, human_insistence).await {
+            Ok(RecallOutcome::Found(result)) => {
+                let mems: Vec<Value> = result.memories.iter().map(|m| json!({
+                    "id":         m.id.as_ref().map(|id| id.to_string()),
+                    "category":   serde_json::to_value(&m.category).unwrap_or_default(),
+                    "content":    m.content,
+                    "confidence": m.confidence,
+                    "known_time": m.known_time,
+                    "epistemic_status": serde_json::to_value(&m.epistemic_status).unwrap_or_default(),
+                    "superseded": m.superseded,
+                })).collect();
+
+                Ok(CallToolResult::success(vec![Content::text(
+                    json!({
+                        "outcome": "found",
+                        "memories": mems,
+                        "tier": result.tier_used as i64,
+                        "candidates": result.candidates,
+                    }).to_string()
+                )]))
+            }
+            Ok(RecallOutcome::Gap(gap)) => {
+                Ok(CallToolResult::success(vec![Content::text(
+                    json!({
+                        "outcome": "gap",
+                        "gap_probe_id": gap.id.as_ref().map(|id| id.to_string()),
+                        "tiers_tried": gap.tiers_tried,
+                        "searched_superseded": gap.searched_superseded,
+                        "searched_temporal": gap.searched_temporal,
+                        "suggested_prompt": gap.suggested_prompt,
+                    }).to_string()
+                )]))
+            }
+            Ok(RecallOutcome::EpisodeReplayed(ep)) => {
+                Ok(CallToolResult::success(vec![Content::text(
+                    json!({
+                        "outcome": "episode_replayed",
+                        "session_id": ep.session_id,
+                        "started_at": ep.started_at,
+                        "ended_at": ep.ended_at,
+                        "memory_count": ep.memories.len(),
+                        "token_count": ep.token_count,
+                        "thread_preview": &ep.thread_text[..ep.thread_text.len().min(500)],
+                    }).to_string()
+                )]))
+            }
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
+    /// Replay a complete past session into active memory.
+    /// Human provides a time anchor (window_start + window_end as ISO strings).
+    /// The full conversation thread is loaded into active context.
+    #[tool(description = "Replay a past session. Human gave a time anchor. Loads the complete episode into active memory.")]
+    async fn replay_episode(
+        &self,
+        #[tool(param)] agent_id: String,
+        #[tool(param)] window_start: String,
+        #[tool(param)] window_end: String,
+        #[tool(param)] topic_hint: Option<String>,
+        #[tool(param)] gap_probe_id: Option<String>,
+    ) -> Result<CallToolResult, rmcp::Error> {
+        use chrono::DateTime;
+
+        let start = DateTime::parse_from_rfc3339(&window_start)
+            .map(|d| d.with_timezone(&chrono::Utc))
+            .map_err(|e| rmcp::Error::invalid_params(format!("window_start: {}", e), None))?;
+
+        let end = DateTime::parse_from_rfc3339(&window_end)
+            .map(|d| d.with_timezone(&chrono::Utc))
+            .map_err(|e| rmcp::Error::invalid_params(format!("window_end: {}", e), None))?;
+
+        let gp_id = gap_probe_id.map(|id| {
+            surrealdb::RecordId::from_table_key("gap_probe", id.as_str())
+        });
+
+        match self.service.replay_by_window(&agent_id, start, end, topic_hint, gp_id).await {
+            Ok(Some(ep)) => Ok(CallToolResult::success(vec![Content::text(
+                json!({
+                    "outcome": "episode_replayed",
+                    "session_id": ep.session_id,
+                    "started_at": ep.started_at,
+                    "ended_at": ep.ended_at,
+                    "memory_count": ep.memories.len(),
+                    "token_count": ep.token_count,
+                    "thread_text": ep.thread_text,
+                }).to_string()
+            )])),
+            Ok(None) => Ok(CallToolResult::success(vec![Content::text(
+                json!({
+                    "outcome": "no_session_found",
+                    "message": "No sessions found in the provided time window. The human may have more specific context.",
+                }).to_string()
+            )])),
+            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
+        }
+    }
+
 }
 
 #[tool_handler]
@@ -270,7 +391,8 @@ impl ServerHandler for AgentMemoryMcp {
             },
             instructions: Some(
                 "Agent-Memory: provenance-first, tri-temporal memory layer. \
-                 Six tools: remember, recall, update, forget, reflect, inspect."
+                 Eight tools: remember, recall, recall_or_gap, update, forget, reflect, inspect, replay_episode. \
+                 Use recall_or_gap when human insists on something not found. Use replay_episode with a time anchor to load full past session."
                     .to_string(),
             ),
         }
