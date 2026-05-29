@@ -566,7 +566,6 @@
     <li><a href="#architecture">Architecture</a></li>
     <li><a href="#sdks">SDKs</a></li>
     <li><a href="#conflict">Conflict</a></li>
-    <li><a href="#research">Research</a></li>
     <li><a href="https://github.com/AGenNext/Agent-Memory" class="nav-cta">GitHub</a></li>
   </ul>
 </nav>
@@ -688,9 +687,8 @@ memory.<span class="c-fn">remember</span>(<span class="c-t">MemoryInput</span> {
   <span class="section-tag">Memory Model</span>
   <h2>Built on how memory<br><strong>actually works</strong></h2>
   <p class="section-sub">
-    Autonomyx original research grounded in peer-reviewed cognitive science.
-    Schacter (Harvard), QBI, Ebbinghaus, HSAM research.
-    Perfect memory is pathological. Forgetting is a feature.
+    Grounded in Schacter's Seven Sins of Memory, Ebbinghaus forgetting curves,
+    and HSAM research. Perfect memory is pathological. Forgetting is a feature.
   </p>
 
   <div class="formula-block">
@@ -861,10 +859,50 @@ memory.<span class="c-fn">remember</span>(<span class="c-t">MemoryInput</span> {
     <a href="https://github.com/AGenNext/Agent-Memory">GitHub</a>
     <a href="https://crates.io/crates/agent-memory">crates.io</a>
     <a href="https://docs.rs/agent-memory">docs.rs</a>
-    <a href="#research">Research</a>
     <a href="https://github.com/AGenNext/Agent-Memory/blob/main/LICENSE">Apache-2.0</a>
   </div>
 </footer>
 
+<script>
+const rows = [
+  ["Ebbinghaus decay",         "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
+  ["Episodic immutability",    "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
+  ["Conflict resolution",      "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
+  ["Gap protocol + replay",    "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
+  ["Versioned interpretations","✓",  "✗",  "partial","✗","✗",  "✗"],
+  ["Temporal knowledge graph", "partial","✗","✓","✗","✗",  "✗"],
+  ["Vector search",            "✓",  "✓",  "✓",  "✓",  "✓",  "✓"],
+  ["BM25 full-text",           "✓",  "✗",  "✓",  "partial","partial","partial"],
+  ["Graph relations",          "✓",  "✓ (Pro)","✓","✗","✗","✗"],
+  ["Zero external deps",       "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
+  ["Framework-agnostic",       "✓",  "✓",  "✓",  "✗",  "✗",  "✗"],
+  ["Rust / Node / Python SDKs","✓",  "Python/JS","Python/JS","Python","Python","Python"],
+  ["Self-hostable",            "✓",  "✓",  "partial","✓","✓","✓"],
+  ["Open source",              "✓",  "✓",  "partial","✓","✓","✓"],
+  ["Cognitive science basis",  "✓",  "✗",  "✗",  "✗",  "✗",  "✗"],
+];
+
+const tbody = document.getElementById("comparison-table");
+if (tbody) {
+  rows.forEach(row => {
+    const tr = document.createElement("tr");
+    tr.style.borderBottom = "1px solid var(--border)";
+    row.forEach((cell, i) => {
+      const td = document.createElement("td");
+      td.style.padding = "10px 16px";
+      td.style.textAlign = i === 0 ? "left" : "center";
+      td.style.fontFamily = i === 0 ? "var(--mono)" : "var(--sans)";
+      td.style.fontSize = "13px";
+      if (cell === "✓") { td.textContent = "✓"; td.style.color = "var(--accent2)"; td.style.fontWeight = "600"; }
+      else if (cell === "✗") { td.textContent = "✗"; td.style.color = "var(--border)"; }
+      else if (cell === "partial") { td.textContent = "~"; td.style.color = "var(--accent3)"; }
+      else { td.textContent = cell; td.style.color = i === 1 ? "var(--accent)" : "var(--muted)"; td.style.fontSize = "11px"; }
+      if (i === 1) td.style.background = "rgba(124,106,245,0.05)";
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+}
+</script>
 </body>
 </html>
