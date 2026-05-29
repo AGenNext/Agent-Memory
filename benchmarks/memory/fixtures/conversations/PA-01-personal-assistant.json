@@ -1,0 +1,29 @@
+{
+  "fixture_id": "PA-01",
+  "domain": "personal_assistant",
+  "description": "15-turn conversation. User corrects a preference at turn 8. Tests misinterpretation conflict resolution and supersession chain.",
+  "turns": [
+    {"turn": 1, "speaker": "user",  "text": "I prefer my reports in bullet points."},
+    {"turn": 2, "speaker": "agent", "text": "Noted — I will use bullet points for reports."},
+    {"turn": 3, "speaker": "user",  "text": "Can you summarise last week's sprint?"},
+    {"turn": 4, "speaker": "agent", "text": "Here is a bullet-point summary of last week's sprint: ..."},
+    {"turn": 5, "speaker": "user",  "text": "The deadline for the Q3 report is June 15th."},
+    {"turn": 6, "speaker": "agent", "text": "Understood. Q3 report deadline is June 15th."},
+    {"turn": 7, "speaker": "user",  "text": "Can you draft the intro for the Q3 report?"},
+    {"turn": 8, "speaker": "user",  "text": "Actually, when I said bullet points, I meant technically precise prose, not short bullets. I need depth."},
+    {"turn": 9, "speaker": "agent", "text": "Understood — I misread that. You want technically precise prose with depth, not short bullets. I will update my understanding."},
+    {"turn": 10, "speaker": "user", "text": "Yes, exactly. Can you redo the sprint summary with that in mind?"},
+    {"turn": 11, "speaker": "agent", "text": "Here is the sprint summary as technically precise prose: ..."},
+    {"turn": 12, "speaker": "user", "text": "Much better. Also the Q3 deadline moved to June 20th."},
+    {"turn": 13, "speaker": "agent", "text": "Updated — Q3 report deadline is now June 20th."},
+    {"turn": 14, "speaker": "user", "text": "What format do you use for my reports?"},
+    {"turn": 15, "speaker": "agent", "text": "Technically precise prose with depth — you clarified this at turn 8 after I had initially understood it as bullet points."}
+  ],
+  "gold_answers": {
+    "what_format_does_user_prefer": "Technically precise prose with depth",
+    "original_misinterpretation": "Short bullet points",
+    "q3_deadline": "June 20th",
+    "conflict_type_at_turn_8": "misinterpretation",
+    "supersession_chain_length": 2
+  }
+}
