@@ -75,12 +75,19 @@ impl MemoryService {
 
         let trace = self.store.write_trace(&q, &ids, RetrievalTier::DirectLookup).await.ok();
 
-        Ok(RecallResult {
+        let result = RecallResult {
             candidates: memories.len(),
             memories,
             trace_id: trace.and_then(|t| t.id),
             tier_used: RetrievalTier::DirectLookup,
-        })
+        };
+        // Reinforce retrieved memories — resets decay
+        for m in &result.memories {
+            if let Some(ref id) = m.id {
+                let _ = self.store.reinforce_memory(&id.key().to_string()).await;
+            }
+        }
+        Ok(result)
     }
 
     async fn recall_hybrid(&self, q: RecallQuery) -> Result<RecallResult> {
@@ -115,12 +122,19 @@ impl MemoryService {
 
         let trace = self.store.write_trace(&q, &ids, q.tier).await.ok();
 
-        Ok(RecallResult {
+        let result = RecallResult {
             memories,
             trace_id: trace.and_then(|t| t.id),
             tier_used: q.tier,
             candidates: total_candidates,
-        })
+        };
+        // Reinforce retrieved memories — resets decay
+        for m in &result.memories {
+            if let Some(ref id) = m.id {
+                let _ = self.store.reinforce_memory(&id.key().to_string()).await;
+            }
+        }
+        Ok(result)
     }
 
     /// Feedback on a retrieval trace — boosts or demotes future rankings.
