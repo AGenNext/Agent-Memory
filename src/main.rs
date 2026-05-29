@@ -1,3 +1,4 @@
+mod config;
 mod memory;
 mod mcp;
 mod services;
@@ -30,13 +31,13 @@ struct Cli {
     #[arg(long, env = "AGENT_MEMORY_AGENTS", value_delimiter = ',', default_value = "default")]
     agents: Vec<String>,
 
-    /// Evolution worker interval in seconds.
-    #[arg(long, env = "AGENT_MEMORY_EVOLUTION_INTERVAL", default_value = "30")]
-    evolution_interval: u64,
+    /// Path to config TOML file. Defaults to <data_dir>/config.toml or built-in defaults.
+    #[arg(long, env = "AGENT_MEMORY_CONFIG")]
+    config: Option<std::path::PathBuf>,
 
-    /// Cortex synthesis interval in seconds.
-    #[arg(long, env = "AGENT_MEMORY_CORTEX_INTERVAL", default_value = "3600")]
-    cortex_interval: u64,
+    /// Write default config.toml to stdout and exit.
+    #[arg(long)]
+    print_default_config: bool,
 
     /// Log level (trace, debug, info, warn, error).
     #[arg(long, env = "RUST_LOG", default_value = "info")]
@@ -72,11 +73,33 @@ async fn main() -> Result<()> {
 
     info!("agent-memory v{}", env!("CARGO_PKG_VERSION"));
 
+    // Print default config and exit
+    if cli.print_default_config {
+        let default = config::Config::default();
+        let content = toml::to_string_pretty(&default)
+            .expect("serialise default config");
+        println!("{}", content);
+        return Ok(());
+    }
+
     // Handle schema-only command before DB boot
     if let Some(Cmd::Schema) = &cli.command {
         print!("{}", include_str!("../migrations/001_memory.surql"));
         return Ok(());
     }
+
+    // Load config
+    let config_path = cli.config.clone().unwrap_or_else(|| {
+        cli.data_dir.as_ref()
+            .map(|d| d.join("config.toml"))
+            .unwrap_or_else(|| std::path::PathBuf::from("config.toml"))
+    });
+    let cfg = config::Config::load(&config_path)?;
+    info!("decay thresholds: retrieval={:.3} escalating={:.3} confidence_floor={:.3}",
+        cfg.retrieval_threshold(),
+        cfg.escalating_threshold(),
+        cfg.confidence_floor(),
+    );
 
     // Boot embedded store
     let store = match cli.data_dir {
@@ -90,7 +113,7 @@ async fn main() -> Result<()> {
         }
     };
 
-    let service = MemoryService::new(store);
+    let service = MemoryService::new(store, cfg.clone());
 
     // Dispatch
     match cli.command.unwrap_or(Cmd::Mcp) {
@@ -107,7 +130,7 @@ async fn main() -> Result<()> {
             tokio::spawn(async move {
                 EvolutionWorker::new(
                     evo_service,
-                    Duration::from_secs(cli.evolution_interval),
+                    Duration::from_secs(cfg.cortex.evolution_interval_secs),
                     20,
                     evo_agents,
                 ).run().await;
@@ -119,7 +142,7 @@ async fn main() -> Result<()> {
             tokio::spawn(async move {
                 CortexSynthesiser::new(
                     cortex_service,
-                    Duration::from_secs(cli.cortex_interval),
+                    Duration::from_secs(cfg.cortex.intraday_interval_secs),
                     cortex_agents,
                     cortex_fn,
                 ).run().await;
