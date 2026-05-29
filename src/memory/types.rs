@@ -118,6 +118,8 @@ pub struct MemoryInput {
     pub tags:             Option<Vec<String>>,
     pub embedding:        Option<Vec<f32>>,
     pub epistemic_status: Option<EpistemicStatus>,
+    /// Override computed decay lambda. If None, computed from category+epistemic+config.
+    pub decay_lambda:     Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
