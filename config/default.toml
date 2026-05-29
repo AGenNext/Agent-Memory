@@ -1,0 +1,97 @@
+# =============================================================================
+# Agent-Memory — Configuration
+# =============================================================================
+# Copy this file to your data directory and edit to tune behaviour.
+# Restart the binary for changes to take effect.
+#
+# All decay values are per-day rates in the Ebbinghaus formula:
+#   effective_confidence = base_confidence × e^(−lambda × days_since_reinforcement)
+#
+# 0.0   = never decays (facts, instructions)
+# 0.001 = very slow (identity — name, role)
+# 0.020 = medium (knowledge — things learned)
+# 0.100 = fast (episodic — raw conversation)
+# 0.500 = very fast (context — current session only)
+#
+# These are Version 1 defaults. Tune them based on your usage patterns.
+# Higher lambda = fades faster. Lower lambda = persists longer.
+# There are no universally correct values — they depend on:
+#   - how frequently you interact with the agent
+#   - how much your preferences and context change over time
+#   - the domain the agent operates in
+# =============================================================================
+
+[decay.category]
+# Raw conversational record — source of truth, indexed by session
+episodic    = 0.100
+
+# Durable facts about agent or user — name, role, preferences
+identity    = 0.001
+
+# Things learned or shared — project facts, observations
+knowledge   = 0.020
+
+# Active working context for current conversation
+context     = 0.500
+
+# Behavioural directives — "always answer in British English"
+# Never decays — it's an instruction, not a belief
+instruction = 0.000
+
+# Explicit "we don't know yet" rows — emitted by reconciler
+uncertainty = 0.030
+
+[decay.epistemic]
+# Externally verifiable — never decays regardless of category
+fact        = 0.000
+
+# Held as true — decays without reinforcement
+belief      = 0.020
+
+# Agent inferred this — fades faster than beliefs
+assumption  = 0.050
+
+# Second-hand — "user said X told them Y" — low trust, fades fast
+hearsay     = 0.080
+
+# Derived by elaboration or consolidation
+inferred    = 0.030
+
+[retrieval]
+# Minimum effective_confidence to surface in normal recall (Tiers 1-2)
+# Memories below this are effectively gone from active recall
+# Lower = more memories surface, including old and uncertain ones
+# Higher = only confident, recently-reinforced memories surface
+threshold = 0.15
+
+# Minimum effective_confidence for escalating recall (Tiers 3-5)
+# Used when human insists something exists but normal recall finds nothing
+# Should always be lower than threshold
+escalating_threshold = 0.05
+
+[reconciler]
+# Minimum confidence for new memory to supersede an existing one
+# Below this floor, the reconciler emits an uncertainty row instead
+confidence_floor = 0.40
+
+# Trust level assigned to direct human statements in the current turn
+# This is what a human saying "I prefer X" scores
+# Higher = human statements override older beliefs more aggressively
+human_statement_trust = 0.90
+
+[cortex]
+# How often (seconds) to refresh the intraday synthesis layer
+# Default: 3600 (1 hour)
+intraday_interval_secs = 3600
+
+# How often (seconds) to check and run the evolution worker
+# Default: 30 seconds
+evolution_interval_secs = 30
+
+[store]
+# Maximum number of memories to return in a single recall query
+max_recall_results = 100
+
+# Number of memories to retrieve in each direction during BM25/vector search
+# before RRF merge. Higher = more candidates, slower, more accurate.
+search_candidates = 20
