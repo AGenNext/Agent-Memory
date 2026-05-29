@@ -10,7 +10,6 @@ use rmcp::{
 use serde_json::{json, Value};
 use tracing::info;
 
-use crate::telemetry::engine::TelemetryEngine;
 use crate::memory::{
     conflict::{ConflictInput, ConflictType},
     gap::RecallOutcome,
@@ -452,32 +451,6 @@ impl AgentMemoryMcp {
         }
     }
 
-    /// Generic telemetry tool. Pass any registered query name.
-    /// Use query="available" to list all queries.
-    /// Use query="summary" to run all at once.
-    /// Returns findings, recommendations, and exact config.toml changes to apply.
-    #[tool(description = "Telemetry and insights. query: decay_tuning | recall_health | conflict_patterns | memory_growth | reinforcement | session_patterns | summary | available. Returns findings + config_suggestions.")]
-    async fn telemetry(
-        &self,
-        #[tool(param)] agent_id: String,
-        #[tool(param)] query: String,
-        #[tool(param)] window_days: Option<i64>,
-    ) -> Result<CallToolResult, rmcp::Error> {
-        use std::sync::Arc;
-
-        let engine = TelemetryEngine::new(
-            Arc::new(self.service.store.clone()),
-            Arc::new(self.service.config.clone()),
-        );
-
-        match engine.run(&agent_id, &query, window_days.unwrap_or(30)).await {
-            Ok(result) => Ok(CallToolResult::success(vec![Content::text(
-                serde_json::to_string(&result).unwrap_or_default()
-            )])),
-            Err(e) => Err(rmcp::Error::internal_error(e.to_string(), None)),
-        }
-    }
-
 }
 
 #[tool_handler]
@@ -494,7 +467,7 @@ impl ServerHandler for AgentMemoryMcp {
             },
             instructions: Some(
                 "Agent-Memory: provenance-first, tri-temporal memory layer. \
-                 Eleven tools: remember, recall, recall_or_gap, update, forget, reflect, inspect, replay_episode, conflict_resolve, decision_log, telemetry. \
+                 Ten tools: remember, recall, recall_or_gap, update, forget, reflect, inspect, replay_episode, conflict_resolve, decision_log. \
                  Use recall_or_gap when human insists on something not found. Use replay_episode with a time anchor to load full past session."
                     .to_string(),
             ),
