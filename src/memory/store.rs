@@ -119,10 +119,14 @@ impl Store {
             .bind(("epistemic_status",
                 serde_json::to_value(&input.epistemic_status.unwrap_or_default())?))
             .bind(("decay_lambda",
-                crate::memory::decay::decay_lambda(
-                    &input.category,
-                    &input.epistemic_status.as_ref().unwrap_or(&crate::memory::types::EpistemicStatus::Belief)
-                )))
+                input.decay_lambda.unwrap_or_else(|| {
+                    crate::memory::decay::decay_lambda(
+                        &input.category,
+                        &input.epistemic_status.as_ref().unwrap_or(
+                            &crate::memory::types::EpistemicStatus::Belief
+                        )
+                    )
+                })))
             .await?;
 
         let memory: Option<Memory> = res.take(0)?;
