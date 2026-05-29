@@ -8,8 +8,10 @@ use surrealdb::{
 use tracing::{debug, info};
 
 use crate::memory::types::*;
+// Gap protocol methods live in store_gap.rs (impl Store extension)
 
-const MIGRATION: &str = include_str!("../../migrations/001_memory.surql");
+const MIGRATION_001: &str = include_str!("../../migrations/001_memory.surql");
+const MIGRATION_002: &str = include_str!("../../migrations/002_human_memory.surql");
 const NS: &str = "agnxxt";
 const DB: &str = "agent_memory";
 
@@ -51,8 +53,9 @@ impl Store {
 
     /// Apply schema migration (idempotent — DEFINE is safe to re-run).
     async fn migrate(&self) -> Result<()> {
-        info!("applying schema migration");
-        self.db.query(MIGRATION).await.context("schema migration")?;
+        info!("applying schema migrations");
+        self.db.query(MIGRATION_001).await.context("migration 001")?;
+        self.db.query(MIGRATION_002).await.context("migration 002")?;
         info!("schema ready");
         Ok(())
     }
@@ -85,9 +88,12 @@ impl Store {
                     keywords         = $keywords,
                     tags             = $tags,
                     embedding        = $embedding,
-                    superseded       = false,
-                    created_at       = time::now(),
-                    updated_at       = time::now()
+                    superseded           = false,
+                    epistemic_status     = $epistemic_status,
+                    decay_lambda         = $decay_lambda,
+                    reinforcement_count  = 0,
+                    created_at           = time::now(),
+                    updated_at           = time::now()
                 RETURN *;
                 "#,
             )
@@ -107,6 +113,13 @@ impl Store {
             .bind(("keywords",         input.keywords))
             .bind(("tags",             input.tags))
             .bind(("embedding",        input.embedding))
+            .bind(("epistemic_status",
+                serde_json::to_value(&input.epistemic_status.unwrap_or_default())?))
+            .bind(("decay_lambda",
+                crate::memory::decay::decay_lambda(
+                    &input.category,
+                    &input.epistemic_status.as_ref().unwrap_or(&crate::memory::types::EpistemicStatus::Belief)
+                )))
             .await?;
 
         let memory: Option<Memory> = res.take(0)?;
