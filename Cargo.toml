@@ -1,0 +1,46 @@
+[package]
+name        = "agent-memory"
+version     = "0.1.0"
+edition     = "2021"
+description = "Agent-Memory: open Spectron-model memory layer, single Rust binary, embedded SurrealDB, MCP server built in"
+license     = "Apache-2.0"
+
+[[bin]]
+name = "agent-memory"
+path = "src/main.rs"
+
+[dependencies]
+# SurrealDB embedded engine — the entire DB runs in-process, no network
+surrealdb   = { version = "3.1.2", features = ["kv-rocksdb", "kv-mem"] }
+
+# Async runtime
+tokio       = { version = "1.52.3", features = ["full"] }
+
+# MCP server — Model Context Protocol, built into the binary
+rmcp        = { version = "1.7.0", features = ["server", "transport-io"] }
+
+# Serialisation
+serde       = { version = "1.0.228", features = ["derive"] }
+serde_json  = { version = "1.0.150" }
+
+# Error handling
+anyhow      = { version = "1.0.102" }
+thiserror   = { version = "2.0.18" }
+
+# Observability
+tracing             = { version = "0.1.44" }
+tracing-subscriber  = { version = "0.3.23", features = ["env-filter", "json"] }
+
+# Types
+uuid        = { version = "1.23.2", features = ["v4", "serde"] }
+chrono      = { version = "0.4.44", features = ["serde"] }
+
+# CLI / config
+clap        = { version = "4", features = ["derive", "env"] }
+dirs        = { version = "6" }
+
+[profile.release]
+opt-level   = 3
+lto         = true
+codegen-units = 1
+strip       = true
