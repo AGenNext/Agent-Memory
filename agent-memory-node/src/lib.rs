@@ -17,6 +17,7 @@ use agent_memory::{
     SourceKind,
     EpistemicStatus,
     SupersedeInput,
+    RecordIdExt,
 };
 
 // ---------------------------------------------------------------------------
@@ -181,12 +182,13 @@ impl AgentMemory {
         agent_id:    String,
         query:       String,
         window_days: Option<i64>,
-    ) -> Result<serde_json::Value> {
+    ) -> Result<String> {
         let core = self.inner.lock().await;
         let result = core.analytics(&agent_id, &query, window_days.unwrap_or(30))
             .await
             .map_err(|e| Error::from_reason(e.to_string()))?;
-        serde_json::to_value(&result)
+        // napi cannot return `serde_json::Value` directly; hand back a JSON string.
+        serde_json::to_string(&result)
             .map_err(|e| Error::from_reason(e.to_string()))
     }
 
@@ -259,7 +261,7 @@ pub struct JsMemory {
 impl From<agent_memory::Memory> for JsMemory {
     fn from(m: agent_memory::Memory) -> Self {
         Self {
-            id:               m.id.map(|id| id.to_string()),
+            id:               m.id.map(|id| id.key_str()),
             category:         format!("{:?}", m.category).to_lowercase(),
             content:          m.content,
             agent_id:         m.agent_id,
@@ -337,7 +339,7 @@ impl From<agent_memory::RecallOutcome> for JsRecallOutcome {
             agent_memory::RecallOutcome::Gap(g) => Self {
                 outcome:          "gap".to_string(),
                 memories:         None,
-                gap_probe_id:     g.id.map(|id| id.to_string()),
+                gap_probe_id:     g.id.map(|id| id.key_str()),
                 suggested_prompt: Some(g.suggested_prompt),
                 tiers_tried:      Some(g.tiers_tried),
             },

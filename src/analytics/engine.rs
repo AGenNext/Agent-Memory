@@ -27,6 +27,7 @@ use serde_json::Value;
 use tracing::debug;
 
 use crate::{config::Config, memory::store::Store};
+use surrealdb::types::SurrealValue;
 
 // ---------------------------------------------------------------------------
 // Result type — what every telemetry query returns
@@ -286,7 +287,7 @@ fn analyse_decay_tuning(
         let mut config_suggestions = BTreeMap::new();
 
         // Tier distribution
-        #[derive(Deserialize)] struct TierRow { tier: i64, count: i64 }
+        #[derive(surrealdb::types::SurrealValue)] struct TierRow { tier: i64, count: i64 }
         let mut res = store.query_raw(&format!(
             "SELECT tier, count() AS count FROM retrieval_trace \
              WHERE agent_id = '{agent_id}' AND created_at > time::now() - {window_days}d \
@@ -345,7 +346,7 @@ fn analyse_decay_tuning(
         }
 
         // Gap probe rate
-        #[derive(Deserialize)] struct GapRow { count: i64 }
+        #[derive(surrealdb::types::SurrealValue)] struct GapRow { count: i64 }
         let mut res2 = store.query_raw(&format!(
             "SELECT count() AS count FROM gap_probe \
              WHERE agent_id = '{agent_id}' AND created_at > time::now() - {window_days}d;"
@@ -376,7 +377,7 @@ fn analyse_decay_tuning(
         }
 
         // Useful rate
-        #[derive(Deserialize)] struct UsefulRow { useful: Option<bool>, count: i64 }
+        #[derive(surrealdb::types::SurrealValue)] struct UsefulRow { useful: Option<bool>, count: i64 }
         let mut res3 = store.query_raw(&format!(
             "SELECT useful, count() AS count FROM retrieval_trace \
              WHERE agent_id = '{agent_id}' AND created_at > time::now() - {window_days}d \
@@ -416,7 +417,7 @@ fn analyse_recall_health(
     agent_id: String, window_days: i64, store: Arc<Store>, _config: Arc<Config>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<AnalyticsResult>> + Send>> {
     Box::pin(async move {
-        #[derive(Deserialize)] struct TierRow { tier: i64, count: i64 }
+        #[derive(surrealdb::types::SurrealValue)] struct TierRow { tier: i64, count: i64 }
         let mut res = store.query_raw(&format!(
             "SELECT tier, count() AS count FROM retrieval_trace \
              WHERE agent_id = '{agent_id}' AND created_at > time::now() - {window_days}d \
@@ -454,7 +455,7 @@ fn analyse_conflict_patterns(
     agent_id: String, window_days: i64, store: Arc<Store>, _config: Arc<Config>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<AnalyticsResult>> + Send>> {
     Box::pin(async move {
-        #[derive(Deserialize)] struct Row { conflict_type: String, count: i64 }
+        #[derive(surrealdb::types::SurrealValue)] struct Row { conflict_type: String, count: i64 }
         let mut res = store.query_raw(&format!(
             "SELECT conflict_type, count() AS count FROM conflict_trace \
              WHERE agent_id = '{agent_id}' AND created_at > time::now() - {window_days}d \
@@ -480,7 +481,7 @@ fn analyse_memory_growth(
     agent_id: String, window_days: i64, store: Arc<Store>, _config: Arc<Config>,
 ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<AnalyticsResult>> + Send>> {
     Box::pin(async move {
-        #[derive(Deserialize)] struct Row { category: String, count: i64, avg_confidence: f64 }
+        #[derive(surrealdb::types::SurrealValue)] struct Row { category: String, count: i64, avg_confidence: f64 }
         let mut res = store.query_raw(&format!(
             "SELECT category, count() AS count, math::mean(confidence) AS avg_confidence \
              FROM memory WHERE agent_id = '{agent_id}' AND superseded = false \
@@ -512,7 +513,7 @@ fn analyse_reinforcement(
         let mut recommendations = vec![];
         let mut config_suggestions = BTreeMap::new();
 
-        #[derive(Deserialize)] struct StaleRow { count: i64 }
+        #[derive(surrealdb::types::SurrealValue)] struct StaleRow { count: i64 }
         let mut res = store.query_raw(&format!(
             "SELECT count() AS count FROM memory WHERE agent_id = '{agent_id}' \
              AND superseded = false AND last_reinforced_at IS NONE AND created_at < time::now() - 30d;"
@@ -527,7 +528,7 @@ fn analyse_reinforcement(
             description: format!("{} memories never reinforced and older than 30 days", stale_count),
         });
 
-        #[derive(Deserialize)] struct AvgRow { avg: f64, max: i64 }
+        #[derive(surrealdb::types::SurrealValue)] struct AvgRow { avg: f64, max: i64 }
         let mut res2 = store.query_raw(&format!(
             "SELECT math::mean(reinforcement_count) AS avg, math::max(reinforcement_count) AS max \
              FROM memory WHERE agent_id = '{agent_id}' AND superseded = false \
@@ -565,7 +566,7 @@ fn analyse_session_patterns(
     Box::pin(async move {
         let mut findings = vec![];
 
-        #[derive(Deserialize)] struct Count { count: i64 }
+        #[derive(surrealdb::types::SurrealValue)] struct Count { count: i64 }
 
         let mut res = store.query_raw(&format!(
             "SELECT count() AS count FROM session_index \

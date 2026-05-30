@@ -1,0 +1,4 @@
+/target
+/agent-memory-node/target
+**/*.rs.bk
+*.pdb

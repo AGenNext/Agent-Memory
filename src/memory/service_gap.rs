@@ -54,7 +54,7 @@ impl MemoryService {
         window_start: DateTime<Utc>,
         window_end:   DateTime<Utc>,
         topic_hint:   Option<String>,
-        gap_probe_id: Option<surrealdb::RecordId>,
+        gap_probe_id: Option<surrealdb::types::RecordId>,
     ) -> Result<Option<ReplayedEpisode>> {
         let replay = EpisodicReplay::new(&self.store);
         let episode = replay.replay_by_time(
@@ -94,7 +94,7 @@ impl MemoryService {
         &self,
         agent_id:     &str,
         session_id:   &str,
-        gap_probe_id: Option<surrealdb::RecordId>,
+        gap_probe_id: Option<surrealdb::types::RecordId>,
     ) -> Result<ReplayedEpisode> {
         let replay = EpisodicReplay::new(&self.store);
         let episode = replay.replay_session(agent_id, session_id, gap_probe_id).await?;
@@ -164,6 +164,7 @@ impl MemoryService {
             keywords:        None,
             tags:            None,
             embedding:       None,
+            decay_lambda:    None,
         }).await?;
 
         info!("stored restated belief {:?} for agent {}", mem.id, agent_id);

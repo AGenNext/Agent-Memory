@@ -34,8 +34,10 @@ surrealdb   = { version = "3.1.2", features = ["kv-rocksdb", "kv-mem"] }
 # Async runtime
 tokio       = { version = "1.52.3", features = ["full"] }
 
-# MCP server — Model Context Protocol (optional feature)
-rmcp        = { version = "1.7.0", features = ["server", "transport-io"], optional = true }
+# MCP server — Model Context Protocol (always compiled into the binary)
+rmcp        = { version = "1.7.0", features = ["server", "transport-io"] }
+# JSON Schema for MCP tool parameter structs (version matches rmcp's)
+schemars    = { version = "1.2" }
 
 # Serialisation
 serde       = { version = "1.0.228", features = ["derive"] }
@@ -54,8 +56,8 @@ tracing-subscriber  = { version = "0.3.19", features = ["env-filter", "json"] }
 uuid        = { version = "1.11.0", features = ["v4", "serde"] }
 chrono      = { version = "0.4.38", features = ["serde"] }
 
-# HTTP health check (for SurrealDB server mode — optional)
-reqwest     = { version = "0.12.0", features = ["json"], default-features = false, optional = true }
+# HTTP health check (for SurrealDB server mode)
+reqwest     = { version = "0.13.4", features = ["json"], default-features = false }
 
 # CLI / config
 clap        = { version = "4", features = ["derive", "env"] }
@@ -63,8 +65,11 @@ dirs        = { version = "5" }
 
 [features]
 default = []
-server-mode = ["reqwest"]
-mcp = ["rmcp"]
+# rmcp and reqwest are now always compiled into the binary; these feature
+# names are retained as no-op stubs so existing CI/release invocations
+# (e.g. `--features mcp,server-mode`) keep working.
+server-mode = []
+mcp = []
 
 [profile.release]
 opt-level     = 3

@@ -13,6 +13,7 @@ use agent_memory::{
     SupersedeInput,
     ConflictInput,
     ConflictType,
+    RecordIdExt,
 };
 
 // ---------------------------------------------------------------------------
@@ -78,7 +79,7 @@ impl AgentMemory {
 
         Python::with_gil(|py| {
             let dict = pyo3::types::PyDict::new(py);
-            dict.set_item("id", memory.id.map(|id| id.to_string()))?;
+            dict.set_item("id", memory.id.map(|id| id.key_str()))?;
             dict.set_item("category", format!("{:?}", memory.category).to_lowercase())?;
             dict.set_item("content", memory.content)?;
             dict.set_item("agent_id", memory.agent_id)?;
@@ -117,7 +118,7 @@ impl AgentMemory {
             let memories = pyo3::types::PyList::empty(py);
             for m in result.memories {
                 let d = pyo3::types::PyDict::new(py);
-                d.set_item("id", m.id.map(|id| id.to_string()))?;
+                d.set_item("id", m.id.map(|id| id.key_str()))?;
                 d.set_item("content", m.content)?;
                 d.set_item("category", format!("{:?}", m.category).to_lowercase())?;
                 d.set_item("confidence", m.confidence)?;
@@ -169,7 +170,7 @@ impl AgentMemory {
                 agent_memory::RecallOutcome::Gap(g) => {
                     out.set_item("outcome", "gap")?;
                     out.set_item("suggested_prompt", g.suggested_prompt)?;
-                    out.set_item("gap_probe_id", g.id.map(|id| id.to_string()))?;
+                    out.set_item("gap_probe_id", g.id.map(|id| id.key_str()))?;
                 }
             }
             Ok(out.into())

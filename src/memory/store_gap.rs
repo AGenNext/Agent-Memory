@@ -3,7 +3,7 @@
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use surrealdb::RecordId;
+use surrealdb::types::{RecordId, SurrealValue};
 
 use crate::memory::{
     decay::{next_reinforcement_count, reinforced_confidence},
@@ -21,7 +21,7 @@ impl Store {
     /// Resets decay by updating last_reinforced_at.
     /// Nudges confidence upward asymptotically.
     pub async fn reinforce_memory(&self, memory_id: &str) -> Result<()> {
-        let id = RecordId::from_table_key("memory", memory_id);
+        let id = RecordId::new("memory", memory_id);
 
         // Fetch current values
         let mem: Option<Memory> = self.db.select(id.clone()).await?;
@@ -82,7 +82,7 @@ impl Store {
         .await?;
 
         // Return the gap probe record
-        #[derive(serde::Deserialize)]
+        #[derive(serde::Deserialize, surrealdb::types::SurrealValue)]
         struct Raw {
             id:                   Option<RecordId>,
             agent_id:             String,
@@ -145,7 +145,7 @@ impl Store {
         known_time: DateTime<Utc>,
         topics:     Option<Vec<String>>,
     ) -> Result<()> {
-        let id = RecordId::from_table_key(
+        let id = RecordId::new(
             "session_index",
             format!("{}_{}", agent_id, session_id).as_str(),
         );
@@ -228,7 +228,7 @@ impl Store {
     /// Upsert the active episode for an agent.
     /// One row per agent — replaces any previous active episode.
     pub async fn upsert_active_episode(&self, input: ActiveEpisodeInput) -> Result<()> {
-        let id = RecordId::from_table_key(
+        let id = RecordId::new(
             "active_episode",
             input.agent_id.as_str(),
         );
@@ -263,14 +263,14 @@ impl Store {
 
     /// Get the active episode for an agent (if any).
     pub async fn get_active_episode(&self, agent_id: &str) -> Result<Option<ActiveEpisodeRow>> {
-        let id = RecordId::from_table_key("active_episode", agent_id);
+        let id = RecordId::new("active_episode", agent_id);
         let row: Option<ActiveEpisodeRow> = self.db.select(id).await?;
         Ok(row)
     }
 
     /// Clear active episode when session ends.
     pub async fn clear_active_episode(&self, agent_id: &str) -> Result<()> {
-        let id = RecordId::from_table_key("active_episode", agent_id);
+        let id = RecordId::new("active_episode", agent_id);
         self.db.query("DELETE $id;").bind(("id", id)).await?;
         Ok(())
     }
@@ -280,7 +280,7 @@ impl Store {
 // Helper types
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Clone, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Deserialize, surrealdb::types::SurrealValue)]
 pub struct ActiveEpisodeRow {
     pub agent_id:         String,
     pub replayed_session: String,
