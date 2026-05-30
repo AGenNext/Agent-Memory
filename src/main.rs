@@ -44,7 +44,7 @@ struct Cli {
 
     /// Server mode.
     ///   mcp  → MCP server on stdio only (default)
-    ///   http → SurrealDB HTTP endpoint only (for Python/TS/Go SDKs)
+    ///   http → SurrealDB HTTP endpoint only (for TS/Go SDKs)
     ///   both → MCP on stdio + SurrealDB HTTP endpoint
     #[arg(long, env = "AGENT_MEMORY_MODE", default_value = "mcp")]
     mode: String,
@@ -291,7 +291,7 @@ async fn run_self_test(service: MemoryService) -> Result<()> {
     // 3. Supersede it
     let (_old, new) = service.update(SupersedeInput {
         old_memory_id: mem_id.clone(),
-        new_content:   "The user prefers bullet-point responses with Python examples.".to_string(),
+        new_content:   "The user prefers bullet-point responses with code examples.".to_string(),
         confidence:    Some(0.95),
         source_kind:   None,
         source_ref:    None,

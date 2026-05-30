@@ -57,9 +57,6 @@ cargo add agent-memory
 # Node.js / TypeScript
 npm install @agentnxxt/agent-memory
 
-# Python (coming soon)
-pip install agent-memory
-
 # MCP server (Claude Desktop / Claude Code)
 # Add to your MCP config — see docs
 ```

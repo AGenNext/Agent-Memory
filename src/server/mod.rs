@@ -2,7 +2,7 @@
 ///
 /// When --mode http or --mode both is set, Agent-Memory spawns
 /// a SurrealDB server process against the same data directory.
-/// External clients (Python, TypeScript, Go, etc.) connect to
+/// External clients (TypeScript, Go, etc.) connect to
 /// that HTTP endpoint using SurrealDB's official client SDKs.
 ///
 /// The binary manages the server lifecycle:
@@ -231,16 +231,15 @@ pub fn print_connection_info(bind_addr: &str, ns: &str, db: &str) {
     println!("║  Namespace : {:<44}║", ns);
     println!("║  Database  : {:<44}║", db);
     println!("╠══════════════════════════════════════════════════════════╣");
-    println!("║  Python    : pip install surrealdb                       ║");
     println!("║  Node.js   : npm install surrealdb                       ║");
     println!("║  Go        : go get github.com/surrealdb/surrealdb.go    ║");
     println!("╚══════════════════════════════════════════════════════════╝");
     println!();
-    println!("  Quick connect (Python):");
-    println!("    from surrealdb import Surreal");
-    println!("    db = Surreal(\"http://{}\")", bind_addr);
-    println!("    await db.connect()");
-    println!("    await db.signin({{\"user\": \"root\", \"pass\": \"root\"}})");
-    println!("    await db.use(\"{}\", \"{}\")", ns, db);
+    println!("  Quick connect (Node.js):");
+    println!("    import {{ Surreal }} from 'surrealdb';");
+    println!("    const db = new Surreal();");
+    println!("    await db.connect('http://{}');", bind_addr);
+    println!("    await db.signin({{ username: 'root', password: 'root' }});");
+    println!("    await db.use({{ namespace: '{}', database: '{}' }});", ns, db);
     println!();
 }
