@@ -1,3 +1,10 @@
+[workspace]
+members = [
+    ".",
+    "agent-memory-node",
+]
+resolver = "2"
+
 [package]
 name        = "agent-memory"
 version     = "0.1.0"
@@ -43,18 +50,18 @@ thiserror   = { version = "2.0.18" }
 
 # Observability
 tracing             = { version = "0.1.44" }
-tracing-subscriber  = { version = "0.3.23", features = ["env-filter", "json"] }
+tracing-subscriber  = { version = "0.3.19", features = ["env-filter", "json"] }
 
 # Types
-uuid        = { version = "1.23.2", features = ["v4", "serde"] }
-chrono      = { version = "0.4.44", features = ["serde"] }
+uuid        = { version = "1.11.0", features = ["v4", "serde"] }
+chrono      = { version = "0.4.38", features = ["serde"] }
 
 # HTTP health check (for SurrealDB server mode)
 reqwest     = { version = "0.13.4", features = ["json"], default-features = false }
 
 # CLI / config
 clap        = { version = "4", features = ["derive", "env"] }
-dirs        = { version = "6" }
+dirs        = { version = "5" }
 
 [features]
 default = []
@@ -65,7 +72,8 @@ server-mode = []
 mcp = []
 
 [profile.release]
-opt-level   = 3
-lto         = true
+opt-level     = 3
+lto           = true
 codegen-units = 1
-strip       = true
+strip         = true
+panic         = "abort"
