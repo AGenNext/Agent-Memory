@@ -40,7 +40,6 @@ These are non-negotiable. Read them before proposing changes.
 - New analytics query types (register in `AnalyticsEngine`)
 - Additional test coverage
 - Documentation improvements
-- Python SDK (PyO3 bindings) — highest priority open item
 - Benchmark fixtures for AMB-001
 
 ## Pull request process
