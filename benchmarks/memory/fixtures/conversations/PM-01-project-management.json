@@ -1,0 +1,22 @@
+{
+  "fixture_id": "PM-01",
+  "domain": "project_management",
+  "description": "10-turn conversation establishing PM identity facts (tracking tool, team size, budget limit). Tests multi-fact recall with a numeric value.",
+  "turns": [
+    {"turn": 1, "speaker": "user",  "text": "We track everything in Linear — that's our source of truth for projects."},
+    {"turn": 2, "speaker": "agent", "text": "Noted — Linear is your primary project-tracking tool and source of truth."},
+    {"turn": 3, "speaker": "user",  "text": "I manage a team of seven."},
+    {"turn": 4, "speaker": "agent", "text": "Got it — your team has seven people."},
+    {"turn": 5, "speaker": "user",  "text": "Can you summarise the open blockers?"},
+    {"turn": 6, "speaker": "agent", "text": "Here are the open blockers from Linear: ..."},
+    {"turn": 7, "speaker": "user",  "text": "One more thing — I can approve spend up to 5,000 euros without sign-off. Above that needs my director."},
+    {"turn": 8, "speaker": "agent", "text": "Understood — your budget approval limit is 5,000 euros; above that requires your director."},
+    {"turn": 9, "speaker": "user",  "text": "What tool do we track in, how big is my team, and what's my approval limit?"},
+    {"turn": 10, "speaker": "agent", "text": "You track in Linear, your team is seven people, and your budget approval limit is 5,000 euros."}
+  ],
+  "gold_answers": {
+    "tracking_tool": "Linear",
+    "team_size": "Seven",
+    "budget_approval_limit": "5,000 euros"
+  }
+}
