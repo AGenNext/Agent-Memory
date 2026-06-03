@@ -1,0 +1,93 @@
+:root {
+  --bg: #0b0d12;
+  --bg-soft: #11141b;
+  --panel: #151924;
+  --border: #232838;
+  --text: #e7ebf3;
+  --muted: #9aa4b8;
+  --accent: #6ea8fe;
+  --accent-2: #8b7cff;
+  --code-bg: #0e1117;
+  --green: #3fb950;
+  --radius: 14px;
+  --maxw: 1040px;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: radial-gradient(1200px 600px at 70% -10%, rgba(110,168,254,0.12), transparent 60%), var(--bg);
+  color: var(--text);
+  font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+/* Nav */
+nav {
+  position: sticky; top: 0; z-index: 10;
+  backdrop-filter: blur(10px);
+  background: rgba(11,13,18,0.7);
+  border-bottom: 1px solid var(--border);
+}
+nav .wrap { display: flex; align-items: center; gap: 24px; height: 60px; }
+nav .brand { font-weight: 700; letter-spacing: -0.02em; }
+nav .brand span { color: var(--accent); }
+nav .links { margin-left: auto; display: flex; gap: 22px; align-items: center; }
+nav .links a { color: var(--muted); font-size: 14px; }
+nav .links a:hover { color: var(--text); text-decoration: none; }
+
+/* Hero */
+.hero { padding: 96px 0 64px; text-align: center; }
+.hero h1 { font-size: 56px; line-height: 1.05; margin: 0 0 18px; letter-spacing: -0.03em;
+  background: linear-gradient(90deg, var(--text), var(--accent)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero p.tag { font-size: 20px; color: var(--muted); max-width: 720px; margin: 0 auto 14px; }
+.hero .sub { color: var(--muted); font-size: 15px; }
+.hero .cta { margin-top: 34px; display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.btn { display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 15px; border: 1px solid var(--border); }
+.btn.primary { background: linear-gradient(90deg, var(--accent), var(--accent-2)); color: #0b0d12; border: none; }
+.btn.primary:hover { text-decoration: none; opacity: 0.92; }
+.btn.ghost { color: var(--text); background: var(--panel); }
+.btn.ghost:hover { text-decoration: none; border-color: var(--accent); }
+
+.pills { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 28px; }
+.pill { font-size: 13px; color: var(--muted); background: var(--bg-soft); border: 1px solid var(--border); padding: 6px 12px; border-radius: 999px; }
+
+/* Sections */
+section { padding: 56px 0; border-top: 1px solid var(--border); }
+section h2 { font-size: 30px; letter-spacing: -0.02em; margin: 0 0 8px; }
+section .lead { color: var(--muted); margin: 0 0 28px; max-width: 760px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px; }
+.card h3 { margin: 0 0 8px; font-size: 17px; }
+.card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+
+/* Code */
+pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; overflow: auto; font-size: 13.5px; line-height: 1.6; }
+code { font-family: "SF Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+pre code { color: #c9d4e6; }
+.k { color: #ff7b72; } .s { color: #a5d6ff; } .c { color: #8b949e; } .f { color: #d2a8ff; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+th, td { text-align: left; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+th { color: var(--muted); font-weight: 600; }
+td code { color: var(--accent); }
+
+.note { background: var(--bg-soft); border: 1px solid var(--border); border-left: 3px solid var(--accent-2); border-radius: 10px; padding: 16px 18px; color: var(--muted); font-size: 14.5px; }
+.note strong { color: var(--text); }
+
+footer { border-top: 1px solid var(--border); padding: 40px 0; color: var(--muted); font-size: 14px; text-align: center; }
+
+@media (max-width: 640px) {
+  .hero h1 { font-size: 40px; }
+  nav .links a:not(.btn) { display: none; }
+}

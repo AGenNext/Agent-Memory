@@ -1,0 +1,18 @@
+{
+  "fixture_id": "RS-01",
+  "domain": "research",
+  "description": "8-turn conversation establishing a research methodology preference. Tests recall of a single knowledge/identity fact.",
+  "turns": [
+    {"turn": 1, "speaker": "user",  "text": "My methodology is always source-first: I never cite a claim without at least two independent primary sources."},
+    {"turn": 2, "speaker": "agent", "text": "Understood — source-first methodology, no claim cited without at least two independent primary sources."},
+    {"turn": 3, "speaker": "user",  "text": "Pull together background on the new battery chemistry."},
+    {"turn": 4, "speaker": "agent", "text": "Here's the background, with each claim backed by two independent primary sources per your methodology: ..."},
+    {"turn": 5, "speaker": "user",  "text": "Good. Flag anything that only has one source."},
+    {"turn": 6, "speaker": "agent", "text": "Flagged — two claims currently rest on a single source and need a second."},
+    {"turn": 7, "speaker": "user",  "text": "Remind me what my research methodology is."},
+    {"turn": 8, "speaker": "agent", "text": "Source-first: never cite a claim without at least two independent primary sources."}
+  ],
+  "gold_answers": {
+    "research_methodology": "Source-first; at least two independent primary sources per claim"
+  }
+}

@@ -9,15 +9,16 @@ repository  = "https://github.com/AGenNext/Agent-Memory"
 [lib]
 crate-type = ["cdylib"]
 
+# Dependency versions pinned exactly (`=x.y.z`) for reproducible builds.
 [dependencies]
 agent-memory = { path = "..", default-features = false }
-napi         = { version = "3.9.0", features = ["async", "tokio_rt", "napi4"] }
-napi-derive  = { version = "3.5.6" }
-tokio        = { version = "1.52.3", features = ["full"] }
-serde_json   = { version = "1.0.150" }
+napi         = { version = "=3.9.0", features = ["async", "tokio_rt", "napi4"] }
+napi-derive  = { version = "=3.5.6" }
+tokio        = { version = "=1.52.3", features = ["full"] }
+serde_json   = { version = "=1.0.150" }
 
 [build-dependencies]
-napi-build = { version = "2.3.2" }
+napi-build = { version = "=2.3.2" }
 
 [profile.release]
 lto           = true

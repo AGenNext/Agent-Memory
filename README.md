@@ -205,6 +205,26 @@ The weights are Version 1 defaults — empirically unvalidated. The analytics to
 
 ---
 
+## Benchmarks
+
+A reproducible memory benchmark harness lives in [`benchmarks/`](benchmarks/). It drives the public API against synthetic multi-turn conversation fixtures and measures **recall@10** plus ingest/recall latency.
+
+```bash
+cargo run --release --example benchmark
+# write a markdown report:
+cargo run --release --example benchmark -- --out benchmarks/results/agent-memory.md
+```
+
+| Metric | What it measures |
+|---|---|
+| Recall@10 | Fraction of queries where the correct memory is in the top 10 retrieved |
+| Ingest mean / p95 | Per-`remember` latency |
+| Recall mean / p95 | Per-`recall` latency |
+
+The harness defines a `MemoryFramework` adapter trait so other memory frameworks (Mem0, Zep, Letta, LangChain memory) can be benchmarked apples-to-apples on the same fixtures and scoring. **No comparative numbers are published until they are actually measured** — see [`benchmarks/README.md`](benchmarks/README.md) for the methodology, the adapter contract, and the reproducibility checklist.
+
+---
+
 ## Research foundation
 
 Agent-Memory is an [Autonomyx](https://openautonomyx.com) original research project. The memory model is grounded in peer-reviewed cognitive science, not in software engineering conventions:

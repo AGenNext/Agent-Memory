@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Agent-Memory — open memory layer for AI agents</title>
+<meta name="description" content="Agent-Memory is an open memory layer for AI agents: embedded SurrealDB, Ebbinghaus decay, episodic replay, and conflict resolution in a single Rust binary." />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<nav>
+  <div class="wrap">
+    <div class="brand">Agent<span>-Memory</span></div>
+    <div class="links">
+      <a href="#what">What</a>
+      <a href="#model">Memory model</a>
+      <a href="#recall">Recall</a>
+      <a href="#benchmarks">Benchmarks</a>
+      <a class="btn ghost" href="https://github.com/AGenNext/Agent-Memory">GitHub</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>Memory that behaves like memory.</h1>
+    <p class="tag">An open memory layer for AI agents — modelled on how human memory actually works, not on database CRUD.</p>
+    <p class="sub">Embedded SurrealDB · Ebbinghaus decay · Episodic replay · Conflict resolution · Single Rust binary</p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/AGenNext/Agent-Memory">View on GitHub</a>
+      <a class="btn ghost" href="#quickstart">Quick start</a>
+    </div>
+    <div class="pills">
+      <span class="pill">Embedded — no server</span>
+      <span class="pill">No runtime dependencies</span>
+      <span class="pill">Apache-2.0</span>
+      <span class="pill">Rust · Node · MCP</span>
+    </div>
+  </div>
+</header>
+
+<section id="what">
+  <div class="wrap">
+    <h2>What this is</h2>
+    <p class="lead">Agent-Memory does not treat memory as a database lookup problem. It treats it as a cognitive process: memories form, strengthen with use, fade without reinforcement, can be reconstructed from temporal anchors, and conflict with each other in ways that require resolution.</p>
+    <div class="grid">
+      <div class="card"><h3>Forms &amp; fades</h3><p>Ebbinghaus decay per category. Every successful recall reinforces a memory and resets its decay clock.</p></div>
+      <div class="card"><h3>Never overwrites</h3><p>Supersede-not-overwrite. Updates create a new version; the supersession chain stays queryable. Raw turns are canonical.</p></div>
+      <div class="card"><h3>Reconstructs</h3><p>Episodic replay rebuilds an entire past session from a time anchor — not just the fact, but the context around it.</p></div>
+      <div class="card"><h3>Resolves conflict</h3><p>Three conflict types, each with a distinct resolution path and a fully logged decision trace.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart">
+  <div class="wrap">
+    <h2>Quick start</h2>
+    <p class="lead">Boots embedded SurrealDB in-process — no server, no install.</p>
+<pre><code><span class="k">use</span> agent_memory::{AgentMemory, MemoryInput, MemoryCategory, RecallQuery};
+
+<span class="c">// Boots embedded SurrealDB — no server, no install</span>
+<span class="k">let</span> memory = AgentMemory::<span class="f">open</span>(<span class="s">"./data"</span>).<span class="k">await</span>?;
+
+<span class="c">// Store with Ebbinghaus decay configured per category</span>
+memory.<span class="f">remember</span>(MemoryInput {
+    agent_id:   <span class="s">"my-agent"</span>.to_string(),
+    content:    <span class="s">"User prefers technically precise responses"</span>.to_string(),
+    category:   MemoryCategory::Identity,
+    importance: <span class="f">Some</span>(<span class="s">0.9</span>),
+    ..Default::default()
+}).<span class="k">await</span>?;
+
+<span class="c">// 5-tier escalating recall with gap protocol</span>
+<span class="k">let</span> result = memory.<span class="f">recall_or_gap</span>(query, human_insistence).<span class="k">await</span>?;</code></pre>
+<pre><code><span class="c"># Rust</span>
+cargo add agent-memory
+
+<span class="c"># Node.js / TypeScript</span>
+npm install @agentnxxt/agent-memory</code></pre>
+  </div>
+</section>
+
+<section id="model">
+  <div class="wrap">
+    <h2>Memory model</h2>
+    <p class="lead">Six categories, each with a default decay rate. Decay is computed at retrieval time, never stored, and every weight is tunable.</p>
+    <table>
+      <thead><tr><th>Category</th><th>λ (default)</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td><code>episodic</code></td><td>0.000</td><td>Raw conversation turns. Immutable canonical truth. Never decays.</td></tr>
+        <tr><td><code>identity</code></td><td>0.001</td><td>Who the person is, how they operate. Very slow decay.</td></tr>
+        <tr><td><code>knowledge</code></td><td>0.020</td><td>Learned facts. Decays without reinforcement.</td></tr>
+        <tr><td><code>context</code></td><td>0.500</td><td>Current session state. Fades in days.</td></tr>
+        <tr><td><code>instruction</code></td><td>0.000</td><td>Behavioural directives. Never decays.</td></tr>
+        <tr><td><code>uncertainty</code></td><td>0.030</td><td>Known unknowns emitted by the reconciler.</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:18px; color:var(--muted); font-size:14.5px;"><code style="color:var(--accent)">effective_confidence = base_confidence × e^(−λ × days_since_reinforcement)</code></p>
+  </div>
+</section>
+
+<section id="recall">
+  <div class="wrap">
+    <h2>Escalating recall</h2>
+    <p class="lead">When normal recall finds nothing and the human insists something exists, retrieval escalates through five tiers before emitting a gap probe.</p>
+    <table>
+      <thead><tr><th>Tier</th><th>Strategy</th></tr></thead>
+      <tbody>
+        <tr><td>1</td><td>Direct lookup — category/scope filter, sub-ms</td></tr>
+        <tr><td>2</td><td>Hybrid BM25 + vector (HNSW) merged via Reciprocal Rank Fusion</td></tr>
+        <tr><td>3</td><td>Include superseded memories — maybe it was overwritten</td></tr>
+        <tr><td>4</td><td>Temporal expansion — 7d / 30d / 90d / 365d windows by known_time</td></tr>
+        <tr><td>5</td><td>Scope relaxation — drop session and scope filters</td></tr>
+        <tr><td>→</td><td>Gap probe — returns a suggested_prompt for the human</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="benchmarks">
+  <div class="wrap">
+    <h2>Benchmarks</h2>
+    <p class="lead">A reproducible harness drives the public API against synthetic multi-turn fixtures and measures recall@10 plus ingest/recall latency.</p>
+<pre><code>cargo run --release --example benchmark
+<span class="c"># write a markdown report:</span>
+cargo run --release --example benchmark -- --out benchmarks/results/agent-memory.md</code></pre>
+    <p class="note" style="margin-top:18px"><strong>Integrity first.</strong> Every number the harness reports is measured on the run that produced it. No comparative figures against other frameworks (Mem0, Zep, Letta, LangChain memory) are published until an adapter for each has actually been run on the same fixtures and scoring. See the <a href="https://github.com/AGenNext/Agent-Memory/blob/main/benchmarks/README.md">benchmark methodology</a> for the adapter contract and reproducibility checklist.</p>
+  </div>
+</section>
+
+<section id="research">
+  <div class="wrap">
+    <h2>Research foundation</h2>
+    <p class="lead">Agent-Memory is an <a href="https://openautonomyx.com">Autonomyx</a> original research project, grounded in peer-reviewed cognitive science rather than software-engineering convention.</p>
+    <div class="grid">
+      <div class="card"><h3>Reconstruction, not replay</h3><p>Schacter (Harvard). Confidence ≠ accuracy; source misattribution drives false memory. Basis for the “agent stands firm” conflict type.</p></div>
+      <div class="card"><h3>Forgetting as a feature</h3><p>Seven Sins of Memory; HSAM research. Perfect memory is pathological — the agent should not store everything.</p></div>
+      <div class="card"><h3>Synaptic plasticity</h3><p>QBI, University of Queensland. Active connections strengthen, unused weaken — reinforcement-on-recall and Ebbinghaus λ.</p></div>
+      <div class="card"><h3>A map, not a transcript</h3><p>Build a mental model of where things live. The background synthesiser produces a knowledge brief, not a log dump.</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Built by <a href="https://openautonomyx.com">Autonomyx / OpenAutonomyx</a> · Part of the <a href="https://github.com/AGenNext">AGenNext</a> ecosystem<br />
+    <a href="https://github.com/AGenNext/Agent-Memory">⭐ Star us on GitHub</a> · Apache-2.0
+  </div>
+</footer>
+
+</body>
+</html>
