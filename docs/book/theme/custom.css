@@ -1,0 +1,22 @@
+/* Agent-Memory mdBook — small accent tweaks on top of the navy theme */
+
+.menu-title {
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Tighten table styling for the many reference tables */
+.content table td,
+.content table th {
+  padding: 0.4rem 0.75rem;
+}
+
+.content table thead th {
+  font-weight: 600;
+}
+
+/* Make blockquotes read as design-principle callouts */
+.content blockquote {
+  border-inline-start: 3px solid var(--links);
+  background: var(--quote-bg);
+}

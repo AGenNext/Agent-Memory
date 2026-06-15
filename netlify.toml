@@ -1,9 +1,16 @@
-# Netlify configuration for the Agent-Memory landing/docs site.
-# The site is static HTML/CSS in ./website — no build step required.
+# Netlify configuration for the Agent-Memory site.
+#
+# Layout served:
+#   /        → hand-written landing page (website/)
+#   /docs/   → mdBook documentation (built from docs/book/ at deploy time)
+#
+# The build step downloads a pinned mdBook binary (no Rust toolchain needed in
+# the build image) and renders the book into website/docs, which is then
+# published alongside the static landing page.
 
 [build]
   publish = "website"
-  command = ""
+  command = "bash netlify/build.sh"
 
 [[headers]]
   for = "/*"

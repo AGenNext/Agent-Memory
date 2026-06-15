@@ -2,3 +2,8 @@
 /agent-memory-node/target
 **/*.rs.bk
 *.pdb
+
+# mdBook build output
+/docs/book/book
+# Generated docs bundled into the site at build time
+/website/docs
