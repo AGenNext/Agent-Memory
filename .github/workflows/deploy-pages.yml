@@ -1,0 +1,75 @@
+name: Deploy site to GitHub Pages
+
+# Builds the landing page (website/) plus the mdBook (docs/book/) and publishes
+# them to GitHub Pages:
+#   /Agent-Memory/        → landing page
+#   /Agent-Memory/docs/   → mdBook documentation
+#
+# One-time setup: repo Settings → Pages → Build and deployment →
+# Source = "GitHub Actions".
+
+on:
+  push:
+    branches:
+      - main
+      # Remove this line after PR #3 merges — it lets the site deploy from the
+      # feature branch so you can preview before merge.
+      - claude/dreamy-curie-YzIxD
+    paths:
+      - "website/**"
+      - "docs/book/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+# Allow one concurrent deployment; let an in-progress run finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+env:
+  MDBOOK_VERSION: "0.5.3"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install mdBook
+        run: |
+          tarball="mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          url="https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/${tarball}"
+          curl -sSfL "$url" | tar -xz -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Assemble site
+        env:
+          # Serve the book under the project-pages subpath.
+          MDBOOK_OUTPUT__HTML__SITE_URL: "/${{ github.event.repository.name }}/docs/"
+        run: |
+          mkdir -p _site
+          cp -R website/. _site/
+          rm -rf _site/docs _site/README.md
+          mdbook build docs/book --dest-dir "$GITHUB_WORKSPACE/_site/docs"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

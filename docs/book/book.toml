@@ -11,6 +11,10 @@ preferred-dark-theme = "navy"
 git-repository-url = "https://github.com/AGenNext/Agent-Memory"
 edit-url-template = "https://github.com/AGenNext/Agent-Memory/edit/main/docs/book/{path}"
 additional-css = ["theme/custom.css"]
+# Base path the book is served under. Default matches a root-domain host
+# (e.g. Netlify) where the book lives at /docs/. For GitHub Pages project
+# sites, the deploy workflow overrides this via MDBOOK_OUTPUT__HTML__SITE_URL.
+site-url = "/docs/"
 
 [output.html.fold]
 enable = true
