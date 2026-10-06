@@ -27,41 +27,45 @@ path = "src/lib.rs"
 name = "agent-memory"
 path = "src/main.rs"
 
+# Dependency versions are pinned exactly (`=x.y.z`) for reproducible builds.
+# Cargo.lock pins the full transitive graph; these `=` requirements stop the
+# direct deps from drifting on a fresh `cargo update`. Bump deliberately.
 [dependencies]
-# SurrealDB embedded engine — the entire DB runs in-process, no network
-surrealdb   = { version = "3.1.2", features = ["kv-rocksdb", "kv-mem"] }
+# SurrealDB embedded engine — the entire DB runs in-process, no network.
+# Pinned to the 3.1 line the codebase targets (surrealdb::types / SurrealValue).
+surrealdb   = { version = "=3.1.2", features = ["kv-rocksdb", "kv-mem"] }
 
 # Async runtime
-tokio       = { version = "1.52.3", features = ["full"] }
+tokio       = { version = "=1.52.3", features = ["full"] }
 
 # MCP server — Model Context Protocol (always compiled into the binary)
-rmcp        = { version = "1.7.0", features = ["server", "transport-io"] }
+rmcp        = { version = "=1.7.0", features = ["server", "transport-io"] }
 # JSON Schema for MCP tool parameter structs (version matches rmcp's)
-schemars    = { version = "1.2" }
+schemars    = { version = "=1.2.1" }
 
 # Serialisation
-serde       = { version = "1.0.228", features = ["derive"] }
-serde_json  = { version = "1.0.150" }
-toml        = { version = "1.1.2", features = ["preserve_order"] }
+serde       = { version = "=1.0.228", features = ["derive"] }
+serde_json  = { version = "=1.0.150" }
+toml        = { version = "=1.1.2", features = ["preserve_order"] }
 
 # Error handling
-anyhow      = { version = "1.0.102" }
-thiserror   = { version = "2.0.18" }
+anyhow      = { version = "=1.0.102" }
+thiserror   = { version = "=2.0.18" }
 
 # Observability
-tracing             = { version = "0.1.44" }
-tracing-subscriber  = { version = "0.3.19", features = ["env-filter", "json"] }
+tracing             = { version = "=0.1.44" }
+tracing-subscriber  = { version = "=0.3.23", features = ["env-filter", "json"] }
 
 # Types
-uuid        = { version = "1.11.0", features = ["v4", "serde"] }
-chrono      = { version = "0.4.38", features = ["serde"] }
+uuid        = { version = "=1.23.2", features = ["v4", "serde"] }
+chrono      = { version = "=0.4.44", features = ["serde"] }
 
 # HTTP health check (for SurrealDB server mode)
-reqwest     = { version = "0.13.4", features = ["json"], default-features = false }
+reqwest     = { version = "=0.13.4", features = ["json"], default-features = false }
 
 # CLI / config
-clap        = { version = "4", features = ["derive", "env"] }
-dirs        = { version = "5" }
+clap        = { version = "=4.6.1", features = ["derive", "env"] }
+dirs        = { version = "=5.0.1" }
 
 [features]
 default = []

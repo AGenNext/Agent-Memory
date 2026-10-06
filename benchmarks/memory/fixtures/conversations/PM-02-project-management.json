@@ -1,0 +1,19 @@
+{
+  "fixture_id": "PM-02",
+  "domain": "project_management",
+  "description": "8-turn conversation establishing meeting cadence and backlog prioritisation method. Tests recall of two process preferences.",
+  "turns": [
+    {"turn": 1, "speaker": "user",  "text": "We run a weekly planning meeting every Monday morning, 30 minutes, no exceptions."},
+    {"turn": 2, "speaker": "agent", "text": "Noted — weekly planning every Monday morning, 30 minutes."},
+    {"turn": 3, "speaker": "user",  "text": "I prioritise the backlog strictly by RICE score — reach, impact, confidence, effort."},
+    {"turn": 4, "speaker": "agent", "text": "Understood — backlog is prioritised by RICE score."},
+    {"turn": 5, "speaker": "user",  "text": "Reorder this week's backlog for me."},
+    {"turn": 6, "speaker": "agent", "text": "Reordered by RICE score, highest first: ..."},
+    {"turn": 7, "speaker": "user",  "text": "What's my meeting cadence and how do I prioritise the backlog?"},
+    {"turn": 8, "speaker": "agent", "text": "Weekly planning every Monday morning for 30 minutes, and you prioritise the backlog by RICE score."}
+  ],
+  "gold_answers": {
+    "meeting_cadence": "Weekly, Monday mornings, 30 minutes",
+    "backlog_prioritisation": "RICE score"
+  }
+}

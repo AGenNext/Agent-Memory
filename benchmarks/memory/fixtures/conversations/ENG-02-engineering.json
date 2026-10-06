@@ -1,0 +1,18 @@
+{
+  "fixture_id": "ENG-02",
+  "domain": "engineering",
+  "description": "8-turn conversation establishing a process preference (handling breaking changes). Tests recall of an instruction-category memory.",
+  "turns": [
+    {"turn": 1, "speaker": "user",  "text": "Our rule for breaking changes: never ship one without a deprecation window of at least one minor release."},
+    {"turn": 2, "speaker": "agent", "text": "Understood — breaking changes require a deprecation window of at least one minor release before removal."},
+    {"turn": 3, "speaker": "user",  "text": "Can you review this PR that renames the auth endpoint?"},
+    {"turn": 4, "speaker": "agent", "text": "This renames a public endpoint — that's a breaking change. Per your rule it needs a deprecation window of at least one minor release."},
+    {"turn": 5, "speaker": "user",  "text": "Right, let's alias the old path for one release first."},
+    {"turn": 6, "speaker": "agent", "text": "Good — I'll keep the old path as an alias for one minor release, then remove it."},
+    {"turn": 7, "speaker": "user",  "text": "Remind me how we handle breaking changes."},
+    {"turn": 8, "speaker": "agent", "text": "Never ship a breaking change without a deprecation window of at least one minor release."}
+  ],
+  "gold_answers": {
+    "breaking_change_policy": "Deprecation window of at least one minor release before removal"
+  }
+}

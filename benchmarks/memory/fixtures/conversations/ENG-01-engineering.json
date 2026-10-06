@@ -1,0 +1,26 @@
+{
+  "fixture_id": "ENG-01",
+  "domain": "engineering",
+  "description": "12-turn conversation establishing engineering identity facts (role, language, IDE, tabs/spaces, retro name). Tests multi-fact identity recall.",
+  "turns": [
+    {"turn": 1, "speaker": "user",  "text": "I'm a backend engineer on the payments team."},
+    {"turn": 2, "speaker": "agent", "text": "Noted — you're a backend engineer on payments."},
+    {"turn": 3, "speaker": "user",  "text": "I write almost everything in Rust these days."},
+    {"turn": 4, "speaker": "agent", "text": "Got it — Rust is your primary language."},
+    {"turn": 5, "speaker": "user",  "text": "I use Neovim as my editor, always have."},
+    {"turn": 6, "speaker": "agent", "text": "Understood — Neovim is your IDE of choice."},
+    {"turn": 7, "speaker": "user",  "text": "And for the record: spaces, never tabs. Four spaces."},
+    {"turn": 8, "speaker": "agent", "text": "Noted — four spaces, never tabs."},
+    {"turn": 9, "speaker": "user",  "text": "We call our sprint retrospective the 'post-mortem' even when nothing broke. Team in-joke."},
+    {"turn": 10, "speaker": "agent", "text": "Got it — your team calls the sprint retrospective the 'post-mortem'."},
+    {"turn": 11, "speaker": "user",  "text": "What's my role, my language, my editor, and what do we call the retro?"},
+    {"turn": 12, "speaker": "agent", "text": "You're a backend engineer on payments, you primarily use Rust, your editor is Neovim, and your team calls the retrospective the 'post-mortem'."}
+  ],
+  "gold_answers": {
+    "role": "Backend engineer on the payments team",
+    "preferred_language": "Rust",
+    "preferred_ide": "Neovim",
+    "tabs_or_spaces": "Spaces (four)",
+    "retro_name": "Post-mortem"
+  }
+}

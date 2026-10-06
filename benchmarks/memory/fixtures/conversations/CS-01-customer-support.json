@@ -1,0 +1,19 @@
+{
+  "fixture_id": "CS-01",
+  "domain": "customer_support",
+  "description": "8-turn conversation establishing support escalation path and customer tone. Tests recall of two operational facts.",
+  "turns": [
+    {"turn": 1, "speaker": "user",  "text": "Escalation path is tier 1 to tier 2, and only tier 2 can loop in engineering. Never skip tier 2."},
+    {"turn": 2, "speaker": "agent", "text": "Understood — escalate tier 1 to tier 2, and only tier 2 brings in engineering. Tier 2 is never skipped."},
+    {"turn": 3, "speaker": "user",  "text": "Always keep the tone with customers warm but professional — never overly casual."},
+    {"turn": 4, "speaker": "agent", "text": "Noted — warm but professional tone with customers, never overly casual."},
+    {"turn": 5, "speaker": "user",  "text": "Draft a reply to this angry refund request."},
+    {"turn": 6, "speaker": "agent", "text": "Here's a warm-but-professional draft acknowledging the frustration and outlining the refund steps: ..."},
+    {"turn": 7, "speaker": "user",  "text": "What's our escalation path and what tone do we use with customers?"},
+    {"turn": 8, "speaker": "agent", "text": "Escalate tier 1 to tier 2, and only tier 2 loops in engineering; tone with customers is warm but professional, never overly casual."}
+  ],
+  "gold_answers": {
+    "escalation_path": "Tier 1 to tier 2; only tier 2 loops in engineering",
+    "customer_tone": "Warm but professional, never overly casual"
+  }
+}

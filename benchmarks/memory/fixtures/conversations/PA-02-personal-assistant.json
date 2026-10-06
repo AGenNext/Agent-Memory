@@ -1,0 +1,22 @@
+{
+  "fixture_id": "PA-02",
+  "domain": "personal_assistant",
+  "description": "10-turn conversation establishing stable identity facts (timezone, feedback style, comms preference). Tests recall of identity-category memories after other turns intervene.",
+  "turns": [
+    {"turn": 1, "speaker": "user",  "text": "I'm based in Berlin, so I'm on Central European Time."},
+    {"turn": 2, "speaker": "agent", "text": "Got it — you're in the Europe/Berlin timezone (CET/CEST)."},
+    {"turn": 3, "speaker": "user",  "text": "When you give me feedback, be direct and blunt. I don't want it softened."},
+    {"turn": 4, "speaker": "agent", "text": "Understood — I'll give you direct, blunt feedback without softening."},
+    {"turn": 5, "speaker": "user",  "text": "Can you check if my 3pm meeting conflicts with anything?"},
+    {"turn": 6, "speaker": "agent", "text": "Your 3pm is clear — no conflicts on your calendar."},
+    {"turn": 7, "speaker": "user",  "text": "Also, I strongly prefer async communication. Don't schedule calls unless it's unavoidable."},
+    {"turn": 8, "speaker": "agent", "text": "Noted — I'll default to async (messages, docs) and only propose a call when there's no async path."},
+    {"turn": 9, "speaker": "user",  "text": "What's my timezone and how do I like feedback?"},
+    {"turn": 10, "speaker": "agent", "text": "You're on Central European Time (Berlin), and you want feedback direct and blunt, not softened."}
+  ],
+  "gold_answers": {
+    "timezone": "Central European Time",
+    "feedback_style": "Direct and blunt, not softened",
+    "communication_preference": "Async"
+  }
+}
