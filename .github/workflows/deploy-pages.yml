@@ -12,9 +12,6 @@ on:
   push:
     branches:
       - main
-      # Remove this line after PR #3 merges — it lets the site deploy from the
-      # feature branch so you can preview before merge.
-      - claude/dreamy-curie-YzIxD
     paths:
       - "website/**"
       - "docs/book/**"
